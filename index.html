@@ -2,61 +2,66 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>VI Indoor Navigation — Mobile UI</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VI-Friendly Indoor Navigation (Color QR + Obstacle Alerts)</title>
   <style>
     :root{
-      --bg:#041018; --card:#07121a; --accent:#ffd54f; --accent-2:#00e676; --text:#eaf6ff;
-      --muted:#9fb0ba; --danger:#ff6b6b;
-      --btn-h:60px; --btn-font:18px;
+      --bg:#000; --card:#0b1220; --accent:#ffd54f; --accent-2:#00e676; --text:#fff;
+      --muted:#9aa8b2;
+      --btn-h:64px; --btn-font:20px;
     }
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,#02060a 0%, #07121a 100%);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;-webkit-font-smoothing:antialiased;}
-    .app{display:flex;flex-direction:column;gap:12px;min-height:100vh;padding:10px;box-sizing:border-box;max-width:1100px;margin:0 auto;}
+    /* overall layout */
+    html,body{height:100%; margin:0; background:linear-gradient(180deg,#05070a 0%, #0b0f14 100%); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; -webkit-font-smoothing:antialiased;}
+    .app { max-width:980px; margin:12px auto; padding:18px; background:linear-gradient(180deg,#071018 0,#07121a 100%); border-radius:14px; box-shadow:0 8px 36px rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.02);}
+    header { display:flex; gap:12px; align-items:center; }
+    h1 { font-size:24px; margin:0; color:var(--accent); letter-spacing:0.6px; }
+    .subtitle { color: var(--muted); font-size:14px; margin-top:4px; }
 
-    header{display:flex;align-items:center;gap:12px;padding-top:6px;}
-    #logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#ffb347);display:flex;align-items:center;justify-content:center;font-weight:800;color:#07121a;font-size:18px}
-    h1{margin:0;font-size:20px;color:var(--accent)}
-    .subtitle{margin-top:4px;color:var(--muted);font-size:13px}
+    /* controls */
+    .controls { margin:14px 0; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .btn { background:var(--accent); color:#000; border:none; padding:12px 18px; border-radius:12px; font-size:var(--btn-font); height:var(--btn-h); min-width:150px; cursor:pointer; box-shadow:0 8px 18px rgba(0,0,0,0.5); }
+    .btn.secondary { background:transparent; color:var(--text); border:2px solid rgba(255,255,255,0.06); }
+    .btn.ghost { background:transparent; color:var(--accent); border:2px dashed rgba(255,213,79,0.18); }
+    .btn:focus { outline:4px solid rgba(255,213,79,0.25); outline-offset:3px; }
+    .select { font-size:18px; padding:12px; border-radius:12px; height:var(--btn-h); background:#07141a; color:var(--text); border:1px solid rgba(255,255,255,0.03); min-width:140px; }
 
-    /* main preview area — mobile-first: preview occupies majority of viewport */
-    .preview-wrap{display:flex;flex-direction:column;gap:10px;align-items:stretch;}
-    #previewCanvas{width:100%;height:auto;background:#000;border-radius:12px;border:2px solid rgba(255,255,255,0.03);display:block;touch-action:none;}
-    .info-row{display:flex;gap:10px;align-items:center;justify-content:space-between;}
-    .big-status{flex:1;background:linear-gradient(180deg,#06161b,#041018);padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.02);font-size:15px;color:var(--muted);min-height:64px}
-    #overlayText{font-weight:800;color:var(--text);font-size:16px;margin-bottom:4px}
-    #srAnnounce{color:var(--muted);font-size:15px}
+    /* status area */
+    .statusBox { margin-top:12px; padding:14px; background:linear-gradient(180deg,#071018,#06121a); border-radius:12px; border:1px solid rgba(0,255,136,0.03); min-height:100px; display:flex; gap:12px; align-items:flex-start; }
+    #leftStatus { flex:1; }
+    #overlayText { font-weight:800; font-size:20px; color:var(--text); margin-bottom:6px; }
+    #srAnnounce { font-size:17px; color:var(--muted); margin-top:6px; }
+    #listeningBox { margin-top:10px; font-size:18px; color:#ffb74d; min-height:22px; }
 
-    /* controls are larger and pinned below preview for easy thumb reach */
-    .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:6px}
-    .select{padding:10px;border-radius:12px;background:#08171d;border:1px solid rgba(255,255,255,0.02);color:var(--text);min-width:120px;font-size:16px;height:48px}
-    .btn{background:var(--accent);color:#07121a;border:none;padding:10px 16px;border-radius:12px;font-size:var(--btn-font);height:var(--btn-h);min-width:130px;box-shadow:0 8px 20px rgba(0,0,0,0.5);cursor:pointer}
-    .btn.secondary{background:transparent;color:var(--text);border:2px solid rgba(255,255,255,0.04)}
-    .btn.ghost{background:transparent;color:var(--accent);border:2px dashed rgba(255,213,79,0.14)}
-    .btn:focus{outline:4px solid rgba(255,213,79,0.14);outline-offset:3px}
+    /* progress pills */
+    .scan-progress { margin-top:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .progress-pill { padding:10px 14px; border-radius:999px; background:#071018; color:var(--muted); font-size:18px; border:1px solid rgba(255,255,255,0.02); min-width:200px; text-align:center; }
+    .progress-pill.found { background:var(--accent-2); color:#000; font-weight:800; border:2px solid rgba(0,64,0,0.7); }
 
-    /* alerts & progress */
-    .bottom-row{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:8px}
-    .progress-pill{padding:10px 12px;border-radius:999px;background:#071018;color:var(--muted);font-size:16px;border:1px solid rgba(255,255,255,0.02);min-width:160px;text-align:center}
-    .progress-pill.found{background:var(--accent-2);color:#07220f;font-weight:800;border:2px solid rgba(0,100,40,0.15)}
-    .alerts{flex:1;min-width:160px;background:#061218;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);color:var(--muted)}
-    .alerts h4{margin:0 0 8px 0;color:var(--accent);font-size:15px}
-    #alertsList{margin:0;padding-left:18px}
+    /* preview and overlay */
+    #previewWrap { display:flex; gap:12px; margin-top:14px; align-items:flex-start; }
+    #previewCanvas { width:420px; height:240px; background:#000; border-radius:10px; border:2px solid #0b1b2a; object-fit:cover; }
+    #infoColumn { flex:1; min-width:240px; display:flex; flex-direction:column; gap:12px; }
 
-    #log{margin-top:8px;background:#021017;padding:10px;border-radius:10px;height:160px;overflow:auto;color:#bfe6f3;border:1px solid rgba(255,255,255,0.02);font-size:13px}
+    /* object alerts list */
+    .alerts { padding:12px; border-radius:10px; background:#061217; border:1px solid rgba(255,255,255,0.02); min-height:100px; color:var(--muted); }
+    .alerts h4 { margin:0 0 6px 0; color:var(--accent); font-size:16px; }
+    .alerts ul { margin:0; padding-left:18px; font-size:16px; color:var(--muted); }
+    .alerts li { margin-bottom:6px; }
 
-    /* map modal */
-    .map-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);z-index:999}
-    .map-modal .box{background:#071018;padding:12px;border-radius:12px;width:95%;max-width:980px;max-height:86%;overflow:auto;border:1px solid rgba(255,255,255,0.02)}
-    #mapCanvas{width:100%;height:auto;background:#fff;border-radius:8px}
+    #log { margin-top:12px; background:#02060a; color:#b8d3de; padding:12px; border-radius:10px; height:160px; overflow:auto; font-size:14px; border:1px solid rgba(255,255,255,0.02); }
 
-    footer{text-align:center;color:var(--muted);font-size:13px;margin-top:8px}
+    .map-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.75); z-index:999; }
+    .map-modal .box { background:#071018; padding:14px; max-width:900px; width:95%; max-height:85%; overflow:auto; border-radius:10px; border:2px solid rgba(255,255,255,0.02); color:#fff; }
+    #mapCanvas { width:100%; height:auto; border-radius:6px; background:#fff; display:block; }
 
-    @media(min-width:900px){
-      .preview-wrap{flex-direction:row;gap:12px}
-      #previewCanvas{width:68%;height:auto}
-      .info-column{width:32%}
-      .controls{justify-content:flex-start}
-      .bottom-row{justify-content:space-between}
+    footer { margin-top:14px; color:var(--muted); font-size:13px; text-align:center; }
+
+    /* visually-hidden for sr-only text */
+    .visually-hidden { position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
+    @media (max-width:760px){
+      #previewCanvas { width:100%; height:200px; }
+      .controls { gap:8px; }
+      .btn { min-width:120px; font-size:18px; height:56px; }
     }
   </style>
 
@@ -69,128 +74,151 @@
 <body>
   <div class="app" role="application" aria-labelledby="appTitle">
     <header>
-      <div id="logo" aria-hidden="true">VI</div>
       <div>
         <h1 id="appTitle">VI Indoor Navigation</h1>
-        <div class="subtitle">Color QR + voice-first navigation • Obstacle alerts • Mobile-ready</div>
+        <div class="subtitle">Color QR navigation • Voice-first • Obstacle alerts</div>
       </div>
     </header>
 
-    <main class="preview-wrap" role="main">
-      <canvas id="previewCanvas" width="1280" height="720" aria-label="Camera preview"></canvas>
-
-      <div class="info-column" style="display:flex;flex-direction:column;gap:10px;">
-        <div class="big-status" aria-live="polite">
-          <div id="overlayText">Ready — Start Scan to begin. The system will speak automatically.</div>
-          <div id="srAnnounce" role="log" aria-live="polite">Status messages will be spoken and displayed here.</div>
-          <div id="listeningBox" style="margin-top:8px;color:#ffcf66"></div>
-        </div>
-
-        <div style="background:#061318;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);">
-          <div style="font-weight:800;color:var(--accent);margin-bottom:6px">Result</div>
-          <div id="result" style="color:var(--muted);min-height:40px">No QR decoded yet.</div>
-        </div>
-
-        <div style="background:#061318;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);">
-          <div style="font-weight:700;color:var(--accent);margin-bottom:6px">Hints for VI users</div>
-          <div style="color:var(--muted);font-size:14px;line-height:1.4">
-            The app will speak instructions automatically. Sweep your phone slowly. Vibrations indicate proximity to QR codes.
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <div class="controls" role="region" aria-label="Controls">
-      <select id="colorFilter" class="select" aria-label="Filter QR color">
+    <div class="controls" role="region" aria-label="Main controls">
+      <select id="colorFilter" class="select" aria-label="Filter QR color. Choose Any, Red, Green or Blue">
         <option>Any</option><option>Red</option><option>Green</option><option>Blue</option>
       </select>
 
-      <button id="startBtn" class="btn" aria-pressed="false" aria-label="Start scanning (S)">Start Scan</button>
-      <button id="stopBtn" class="btn secondary" aria-pressed="false" aria-label="Stop scanning (Space)">Stop</button>
-      <button id="voiceDestBtn" class="btn ghost" aria-label="Voice destination (V)">Voice Dest (fallback)</button>
-      <button id="mapBtn" class="btn secondary" aria-label="Show map (M)">Map</button>
-      <button id="restartBtn" class="btn secondary" aria-label="Restart (R)">Restart</button>
+      <button id="startBtn" class="btn" aria-pressed="false" aria-label="Start scanning for QR codes (S)">Start Scan</button>
+      <button id="stopBtn" class="btn secondary" aria-pressed="false" aria-label="Stop scanning (Space)">Stop Scan</button>
+      <!-- kept for fallback but system will NOT require user to press it -->
+      <button id="voiceDestBtn" class="btn ghost" aria-label="Voice destination input (V)">Voice Destination</button>
+      <button id="mapBtn" class="btn secondary" aria-label="Show map (M)">Show Map</button>
+      <button id="restartBtn" class="btn secondary" aria-label="Restart scanner (R)">Restart</button>
 
-      <label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:15px;margin-left:6px">
-        <input type="checkbox" id="enableDetect" checked aria-label="Enable object detection"> Enable detection
+      <label style="display:flex; align-items:center; gap:8px; margin-left:6px; color:var(--muted); font-size:16px;">
+        <input type="checkbox" id="enableDetect" checked aria-label="Enable object detection"> Enable Object Detection
       </label>
     </div>
 
-    <div class="bottom-row">
-      <div class="progress-pill" id="progressRed" role="status">Red QR: Not found</div>
-      <div class="progress-pill" id="progressGreen" role="status">Green QR: Not found</div>
-      <div class="progress-pill" id="progressBlue" role="status">Blue QR: Not found</div>
+    <div class="statusBox" role="status" aria-live="polite">
+      <div id="leftStatus">
+        <div id="overlayText">Ready — Start Scan to begin. Voice input will be started automatically when needed.</div>
+        <div id="srAnnounce" aria-live="polite" role="log">Status messages will be read aloud.</div>
+        <div id="listeningBox" aria-hidden="true"></div>
+        <div class="scan-progress" aria-hidden="false">
+          <div id="progressRed" class="progress-pill" role="status">Red QR: Not found</div>
+          <div id="progressGreen" class="progress-pill" role="status">Green QR: Not found</div>
+          <div id="progressBlue" class="progress-pill" role="status">Blue QR: Not found</div>
+        </div>
+      </div>
 
-      <div class="alerts" aria-live="polite">
-        <h4>Object Alerts</h4>
-        <ul id="alertsList"><li>No recent alerts</li></ul>
+      <div style="width:320px;">
+        <div class="alerts" aria-live="polite" id="objectAlertsPanel">
+          <h4>Object Alerts</h4>
+          <ul id="alertsList"><li>No recent alerts</li></ul>
+        </div>
       </div>
     </div>
 
-    <div id="log" role="log" aria-live="polite"></div>
+    <!-- preview & info -->
+    <div id="previewWrap">
+      <canvas id="previewCanvas" width="640" height="360" aria-label="Camera preview for sighted helper"></canvas>
+
+      <div id="infoColumn">
+        <div style="background:#06121a; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.02)">
+          <div style="font-weight:800; color:var(--accent); font-size:16px; margin-bottom:6px">Live information</div>
+          <div id="result" style="color:var(--muted); font-size:15px; min-height:44px">No QR decoded yet.</div>
+        </div>
+
+        <div style="background:#06121a; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.02)">
+          <div style="font-weight:700; color:var(--accent); font-size:16px; margin-bottom:6px">Hints for VI users</div>
+          <div style="color:var(--muted); font-size:14px; line-height:1.4">
+            • The app speaks instructions automatically. Keep your phone facing forward and sweep left-right to find QR codes.<br>
+            • Vibration patterns indicate proximity when approaching a QR (stronger pulses when close).<br>
+            • If voice input is blocked by browser, the app will ask a single fallback to allow microphone access.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="log" aria-live="polite" role="log"></div>
 
     <div class="map-modal" id="mapModal" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
       <div class="box">
         <h3 id="mapTitle">Map Preview</h3>
         <canvas id="mapCanvas" width="900" height="600"></canvas>
-        <div style="text-align:right;margin-top:8px">
-          <button id="closeMap" class="btn secondary">Close</button>
+        <div style="text-align:right; margin-top:8px;">
+          <button id="closeMap" class="btn secondary" aria-label="Close map">Close</button>
         </div>
       </div>
     </div>
 
-    <footer>Mobile-first interface — speak naturally. If speech is blocked, a brief fallback will appear.</footer>
+    <footer>Built for visually impaired users — spoken prompts, vibration and object alerts help navigation.</footer>
   </div>
 
 <script>
-/* ---------- Helpers & DOM ---------- */
-const previewCanvas = document.getElementById('previewCanvas');
-const previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true });
-const canvasDisp = document.createElement('canvas');
-const ctxDisp = canvasDisp.getContext('2d', { willReadFrequently: true });
-
+/* ---------------------------
+   Accessible announce wrapper
+   --------------------------- */
 const overlayText = document.getElementById('overlayText');
 const srAnnounce = document.getElementById('srAnnounce');
-const listeningBox = document.getElementById('listeningBox');
+function announce(text, interrupt=false) {
+  overlayText.textContent = text;
+  srAnnounce.textContent = text;
+  TTS.speak(text, interrupt);
+  log(`[ANNOUNCE] ${text}`);
+}
+
+/* ---------------------------
+   DOM elements & preview
+   --------------------------- */
+const previewCanvas = document.getElementById('previewCanvas');
+const previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true });
+const canvasDisp = document.createElement('canvas'); // hidden processing canvas
+const ctxDisp = canvasDisp.getContext('2d', { willReadFrequently: true });
+
 const resultEl = document.getElementById('result');
 const logEl = document.getElementById('log');
-const alertsList = document.getElementById('alertsList');
-
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const voiceDestBtn = document.getElementById('voiceDestBtn');
-const restartBtn = document.getElementById('restartBtn');
+const colorFilterEl = document.getElementById('colorFilter');
 const mapBtn = document.getElementById('mapBtn');
-const closeMap = document.getElementById('closeMap');
 const mapModal = document.getElementById('mapModal');
 const mapCanvas = document.getElementById('mapCanvas');
-
-const colorFilterEl = document.getElementById('colorFilter');
+const closeMap = document.getElementById('closeMap');
+const restartBtn = document.getElementById('restartBtn');
 const progressRed = document.getElementById('progressRed');
 const progressGreen = document.getElementById('progressGreen');
 const progressBlue = document.getElementById('progressBlue');
 const enableDetectCheckbox = document.getElementById('enableDetect');
+const alertsList = document.getElementById('alertsList');
 
 const log = (m) => { console.log(m); const t = new Date().toLocaleTimeString(); logEl.innerText += `[${t}] ${m}\n`; logEl.scrollTop = logEl.scrollHeight; };
 
-/* ---------- State ---------- */
-const SCAN_SIZE = 420; // larger scan area for mobile
+/* ---------------------------
+   Config & state
+   --------------------------- */
+const SCAN_SIZE = 320;
 let scanBox = { x: 0, y: 0, size: SCAN_SIZE };
-let stream = null, scannerRunning = false, animationFrameId = null;
-let foundResults = new Map(), actionsTriggered = false, currentLocation = null, currentNavigationTarget = null;
-let latestDetections = [];
-let userGesturePerformed = false;
+let cvReady = false, animationFrameId = null, stream = null, scannerRunning = false;
+let foundResults = new Map(), scanStartTime = Date.now(), currentLocation = null, currentNavigationTarget = null;
+let latestDetections = [], actionsTriggered = false;
 
-/* ---------- Object detection globals ---------- */
+/* ---------------------------
+   Object detection globals
+   --------------------------- */
 let cocoModel = null, cocoReady = false;
-const DETECTION_INTERVAL_MS = 900, SCORE_THRESHOLD = 0.45;
-const CENTER_TOLERANCE = 0.25, DISTANCE_ESTIMATE_SCALE = 1.6;
-let lastDetectTime = 0;
-const alertCooldown = 3000;
-const lastAlertAt = {};
+const DETECTION_INTERVAL_MS = 900, SCORE_THRESHOLD = 0.45, CENTER_TOLERANCE = 0.25;
+const DISTANCE_ESTIMATE_SCALE = 1.6; let lastDetectTime = 0;
+const alertCooldown = 3000; const lastAlertAt = {};
 const HARMFUL_CLASSES = new Set(['person','chair','couch','bench','dining table','stop sign','tv','suitcase','backpack','bed','toilet']);
 
-/* ---------- Graph & navigation helpers (unchanged) ---------- */
+/* ---------------------------
+   user gesture (some browsers)
+   --------------------------- */
+let userGesturePerformed = false;
+
+/* ---------------------------
+   Graph & helpers (unchanged)
+   --------------------------- */
 const node_coords = {
   "Female Toilet (NGT1)": [2009, 1357],
   "Male Toilet (NGT2)": [1955, 1357],
@@ -210,6 +238,7 @@ const node_coords = {
   "N011": [1251, 1340],
   "N012": [1597, 1340],
 };
+
 const graph_raw = {
   "Female Toilet (NGT1)": {"Male Toilet (NGT2)": 1.89},
   "N001": {"Female Toilet (NGT1)": 9.00, "N001 (backdoor)": 6.77, "N002": 9.00},
@@ -241,32 +270,96 @@ function add_bidirectional_edges(graph_in) {
   return new_graph;
 }
 const graph = add_bidirectional_edges(graph_raw);
+
 function dijkstra(gr, start, end) {
-  const pq = new MinHeap(); pq.push({cost:0,node:start,path:[]});
+  const pq = new MinHeap();
+  pq.push({cost:0,node:start,path:[]});
   const visited = new Set();
   while (!pq.empty()) {
-    const item = pq.pop(); const {cost,node,path} = item;
+    const item = pq.pop();
+    const {cost, node, path} = item;
     if (visited.has(node)) continue;
-    const newPath = path.concat([node]); visited.add(node);
+    const newPath = path.concat([node]);
+    visited.add(node);
     if (node === end) return {path:newPath, cost};
-    const neighbors = gr[node]||{};
-    for (const nb in neighbors) if(!visited.has(nb)) pq.push({cost: cost + neighbors[nb], node: nb, path: newPath});
+    const neighbors = gr[node] || {};
+    for (const nb in neighbors) {
+      if (!visited.has(nb)) pq.push({cost: cost + neighbors[nb], node: nb, path: newPath});
+    }
   }
   return {path:[], cost: Infinity};
 }
-class MinHeap { constructor(){ this.a=[];} push(x){this.a.push(x);this._siftUp();} pop(){if(this.a.length===0)return null;const r=this.a[0];const last=this.a.pop();if(this.a.length){this.a[0]=last;this._siftDown();}return r;} empty(){return this.a.length===0;} _siftUp(){let i=this.a.length-1;while(i>0){let p=Math.floor((i-1)/2); if(this.a[p].cost<=this.a[i].cost) break; [this.a[p],this.a[i]]=[this.a[i],this.a[p]]; i=p;}} _siftDown(){let i=0;const n=this.a.length; while(true){let l=i*2+1; let r=i*2+2; let smallest=i; if(l<n && this.a[l].cost < this.a[smallest].cost) smallest=l; if(r<n && this.a[r].cost < this.a[smallest].cost) smallest=r; if(smallest===i) break; [this.a[i],this.a[smallest]]=[this.a[smallest],this.a[i]]; i=smallest;}}}
-function get_turn_direction(p1,p2,p3){ const v1=[p2[0]-p1[0], p2[1]-p1[1]]; const v2=[p3[0]-p2[0], p3[1]-p2[1]]; const raw=(Math.atan2(v2[1],v2[0]) - Math.atan2(v1[1],v1[0]))*180/Math.PI; const angle=(raw+360)%360; if(angle<45||angle>315) return "Move straight"; if(angle>=45&&angle<135) return "Turn right"; if(angle>=135&&angle<225) return "Turn back"; return "Turn left"; }
-function get_initial_direction_simple(p1,p2){ const dx=p2[0]-p1[0], dy=p2[1]-p1[1]; const angle=(Math.atan2(dy,dx)*180/Math.PI+360)%360; if(angle>=315||angle<45) return "Move straight"; if(angle>=45&&angle<135) return "Turn right"; if(angle>=135&&angle<225) return "Turn back"; return "Turn left"; }
+class MinHeap {
+  constructor(){ this.a = []; }
+  push(x){ this.a.push(x); this._siftUp(); }
+  pop(){ if(this.a.length===0) return null; const r=this.a[0]; const last=this.a.pop(); if(this.a.length) { this.a[0]=last; this._siftDown(); } return r; }
+  empty(){ return this.a.length===0; }
+  _siftUp(){ let i=this.a.length-1; while(i>0){ let p=Math.floor((i-1)/2); if(this.a[p].cost<=this.a[i].cost) break; [this.a[p],this.a[i]]=[this.a[i],this.a[p]]; i=p; } }
+  _siftDown(){ let i=0; const n=this.a.length; while(true){ let l=i*2+1; let r=i*2+2; let smallest=i; if(l<n && this.a[l].cost < this.a[smallest].cost) smallest=l; if(r<n && this.a[r].cost < this.a[smallest].cost) smallest=r; if(smallest===i) break; [this.a[i],this.a[smallest]]=[this.a[smallest],this.a[i]]; i=smallest; } }
+}
+function get_turn_direction(p1,p2,p3) {
+  const v1 = [p2[0]-p1[0], p2[1]-p1[1]];
+  const v2 = [p3[0]-p2[0], p3[1]-p2[1]];
+  const raw = (Math.atan2(v2[1], v2[0]) - Math.atan2(v1[1], v1[0])) * 180/Math.PI;
+  const angle = (raw + 360) % 360;
+  if (angle < 45 || angle > 315) return "Move straight";
+  if (angle >= 45 && angle < 135) return "Turn right";
+  if (angle >= 135 && angle < 225) return "Turn back";
+  return "Turn left";
+}
+function get_initial_direction_simple(p1,p2) {
+  const dx = p2[0]-p1[0], dy = p2[1]-p1[1];
+  const angle = (Math.atan2(dy,dx) * 180/Math.PI + 360) % 360;
+  if (angle >= 315 || angle < 45) return "Move straight";
+  if (angle >= 45 && angle < 135) return "Turn right";
+  if (angle >= 135 && angle < 225) return "Turn back";
+  return "Turn left";
+}
 
-/* ---------- TTS manager ---------- */
-const TTS = { queue:[], speaking:false, speak(text, interrupt=false){ if(!text) return; if(interrupt){ this.queue=[]; if(speechSynthesis.speaking) speechSynthesis.cancel(); } this.queue.push(text); this._maybeSpeak(); }, _maybeSpeak(){ if(this.speaking) return; const next=this.queue.shift(); if(!next) return; this.speaking=true; const utt=new SpeechSynthesisUtterance(next); utt.rate=1.0; utt.onend=()=>{ this.speaking=false; setTimeout(()=>this._maybeSpeak(),80); }; utt.onerror=()=>{ this.speaking=false; setTimeout(()=>this._maybeSpeak(),80); }; speechSynthesis.speak(utt); } };
+/* ---------------------------
+   TTS manager
+   --------------------------- */
+const TTS = {
+  queue: [],
+  speaking: false,
+  speak(text, interrupt=false) {
+    if (!text) return;
+    if (interrupt) {
+      this.queue = [];
+      if (speechSynthesis.speaking) speechSynthesis.cancel();
+    }
+    this.queue.push(text);
+    this._maybeSpeak();
+  },
+  _maybeSpeak() {
+    if (this.speaking) return;
+    const next = this.queue.shift();
+    if (!next) return;
+    this.speaking = true;
+    const utt = new SpeechSynthesisUtterance(next);
+    utt.rate = 1.0;
+    utt.onend = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
+    utt.onerror = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
+    speechSynthesis.speak(utt);
+  }
+};
 
-/* ---------- SR availability ---------- */
-let SR_AVAILABLE = false; try{ const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if(SR) SR_AVAILABLE=true; }catch(e){SR_AVAILABLE=false}
+/* ---------------------------
+   Speech recognition availability
+   --------------------------- */
+let SR_AVAILABLE = false;
+try {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) SR_AVAILABLE = true;
+} catch(e){ SR_AVAILABLE=false; }
 
-/* ---------- Color detection functions (kept same) ---------- */
-/* createColorMask, extractColorChannel, enhanceBlueContrast, detectWithOpenCV, detect_colored_qr_in_frame_js */
-/* -- same implementations as before (unchanged) -- */
+/* ---------------------------
+   Color detection functions (same)
+   --------------------------- */
+
+/* Inserted functions: createColorMask, extractColorChannel, enhanceBlueContrast, detectWithOpenCV, detect_colored_qr_in_frame_js
+   (unchanged from your previous implementation) - keep these as-is in the real project. For brevity here I include them verbatim. */
+
 function createColorMask(imageData, color) {
   const data = imageData.data;
   const maskData = new Uint8ClampedArray(data.length);
@@ -278,15 +371,15 @@ function createColorMask(imageData, color) {
     const b = data[i + 2];
     let isTargetColor = false;
     if (color === 'red') {
-      isTargetColor = (r > g + 30 && r > b + 30 && r > 80) ||
+      isTargetColor = (r > g + 30 && r > b + 30 && r > 80) || 
                      (r > 150 && r > g * 1.5 && r > b * 1.5) ||
                      (r > 120 && g < 80 && b < 80);
     } else if (color === 'green') {
-      isTargetColor = (g > r + 30 && g > b + 30 && g > 80) ||
+      isTargetColor = (g > r + 30 && g > b + 30 && g > 80) || 
                      (g > 150 && g > r * 1.5 && g > b * 1.5) ||
                      (g > 120 && r < 80 && b < 80);
     } else if (color === 'blue') {
-      isTargetColor = (b > r + 15 && b > g + 15 && b > 50) ||
+      isTargetColor = (b > r + 15 && b > g + 15 && b > 50) || 
                      (b > 100 && b > r * 1.1 && b > g * 1.1) ||
                      (b > 70 && r < 120 && g < 120) ||
                      (b > 60 && b > r && b > g && (r + g) < b * 1.5) ||
@@ -299,18 +392,46 @@ function createColorMask(imageData, color) {
       maskData[i] = 0; maskData[i + 1] = 0; maskData[i + 2] = 0; maskData[i + 3] = 255;
     }
   }
+  const colorRatio = colorPixels / totalPixels;
+  if (colorRatio > 0.01) {
+    console.log(`${color} mask: ${colorPixels}/${totalPixels} pixels (${(colorRatio*100).toFixed(1)}%)`);
+  }
   return new ImageData(maskData, imageData.width, imageData.height);
 }
 
 function extractColorChannel(imageData, channel) {
   const data = new Uint8ClampedArray(imageData.data);
+  let colorPixels = 0;
+  let totalPixels = data.length / 4;
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
-    let intensity = 0;
-    if (channel === 'red') intensity = r;
-    else if (channel === 'green') intensity = g;
-    else intensity = b > 0 ? Math.min(255, b * 1.2) : 0;
+    let intensity;
+    let isColorDominant = false;
+    if (channel === 'red') {
+      intensity = r;
+      isColorDominant = (r > g && r > b && r > 50);
+      if (isColorDominant) colorPixels++;
+    } else if (channel === 'green') {
+      intensity = g;
+      isColorDominant = (g > r && g > b && g > 50);
+      if (isColorDominant) colorPixels++;
+    } else if (channel === 'blue') {
+      intensity = b;
+      isColorDominant = (b > r && b > g && b > 30) || 
+                       (b > 60 && b > r * 1.1 && b > g * 1.1) ||
+                       (b > 40 && r < 100 && g < 100);
+      if (isColorDominant) {
+        colorPixels++;
+        intensity = Math.min(255, b * 1.8);
+      }
+    }
     data[i] = intensity; data[i + 1] = intensity; data[i + 2] = intensity;
+  }
+  if (channel === 'blue') {
+    const colorRatio = colorPixels / totalPixels;
+    if (colorRatio > 0.005) {
+      console.log(`Blue channel enhanced: ${colorPixels}/${totalPixels} pixels (${(colorRatio*100).toFixed(2)}%)`);
+    }
   }
   return new ImageData(data, imageData.width, imageData.height);
 }
@@ -320,10 +441,15 @@ function enhanceBlueContrast(imageData) {
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
     let blueIntensity = 0;
-    if (b > r && b > g) blueIntensity = Math.min(255, b * 2);
-    else if (b > 60 && (b - r > 10 || b - g > 10)) blueIntensity = Math.min(255, b * 1.5);
-    else if (b > 40 && r < 100 && g < 100) blueIntensity = Math.min(255, b * 1.8);
-    else blueIntensity = Math.max(0, Math.min(r, g, b) * 0.3);
+    if (b > r && b > g) {
+      blueIntensity = Math.min(255, b * 2);
+    } else if (b > 60 && (b - r > 10 || b - g > 10)) {
+      blueIntensity = Math.min(255, b * 1.5);
+    } else if (b > 40 && r < 100 && g < 100) {
+      blueIntensity = Math.min(255, b * 1.8);
+    } else {
+      blueIntensity = Math.max(0, Math.min(r, g, b) * 0.3);
+    }
     data[i] = blueIntensity; data[i + 1] = blueIntensity; data[i + 2] = blueIntensity;
   }
   return new ImageData(data, imageData.width, imageData.height);
@@ -337,37 +463,40 @@ function detectWithOpenCV(imageData, color) {
     cv.cvtColor(src, hsv, cv.COLOR_RGBA2RGB);
     cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
     let mask = new cv.Mat();
+    let low, high;
     if (color === 'red') {
       let mask1 = new cv.Mat(), mask2 = new cv.Mat();
-      cv.inRange(hsv, new cv.Scalar(0,40,40), new cv.Scalar(10,255,255), mask1);
-      cv.inRange(hsv, new cv.Scalar(170,40,40), new cv.Scalar(180,255,255), mask2);
+      low = new cv.Scalar(0, 40, 40); high = new cv.Scalar(10, 255, 255); cv.inRange(hsv, low, high, mask1);
+      low = new cv.Scalar(170, 40, 40); high = new cv.Scalar(180, 255, 255); cv.inRange(hsv, low, high, mask2);
       cv.add(mask1, mask2, mask); mask1.delete(); mask2.delete();
     } else if (color === 'green') {
-      cv.inRange(hsv, new cv.Scalar(35,30,30), new cv.Scalar(85,255,255), mask);
-    } else {
-      let m1 = new cv.Mat(), m2 = new cv.Mat(), m3 = new cv.Mat();
-      cv.inRange(hsv, new cv.Scalar(100,25,25), new cv.Scalar(130,255,255), m1);
-      cv.inRange(hsv, new cv.Scalar(90,20,20), new cv.Scalar(140,255,255), m2);
-      cv.inRange(hsv, new cv.Scalar(105,15,30), new cv.Scalar(125,255,255), m3);
-      cv.add(m1, m2, mask); cv.add(mask, m3, mask); m1.delete(); m2.delete(); m3.delete();
+      low = new cv.Scalar(35, 30, 30); high = new cv.Scalar(85, 255, 255); cv.inRange(hsv, low, high, mask);
+    } else if (color === 'blue') {
+      let mask1 = new cv.Mat(), mask2 = new cv.Mat(), mask3 = new cv.Mat();
+      low = new cv.Scalar(100, 25, 25); high = new cv.Scalar(130, 255, 255); cv.inRange(hsv, low, high, mask1);
+      low = new cv.Scalar(90, 20, 20); high = new cv.Scalar(140, 255, 255); cv.inRange(hsv, low, high, mask2);
+      low = new cv.Scalar(105, 15, 30); high = new cv.Scalar(125, 255, 255); cv.inRange(hsv, low, high, mask3);
+      cv.add(mask1, mask2, mask); cv.add(mask, mask3, mask); mask1.delete(); mask2.delete(); mask3.delete();
     }
-    let kernel3 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3,3));
-    let kernel5 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5,5));
+    let kernel3 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+    let kernel5 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
     cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel3);
     cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, kernel5);
     cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel3);
+    kernel3.delete(); kernel5.delete();
     let rgba = new cv.Mat();
     cv.cvtColor(mask, rgba, cv.COLOR_GRAY2RGBA);
     const result = new ImageData(new Uint8ClampedArray(rgba.data), rgba.cols, rgba.rows);
     src.delete(); hsv.delete(); mask.delete(); rgba.delete();
     return result;
   } catch(e) {
-    console.warn('OpenCV detect error', e); return null;
+    console.error('OpenCV detection error:', e);
+    return null;
   }
 }
 
 function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
-  const COLORS = ['red','green','blue'];
+  const COLORS = ['red', 'green', 'blue'];
   for (const color of COLORS) {
     if (targetColor && color !== targetColor) continue;
     try {
@@ -382,206 +511,307 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
         }
         return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Enhanced-Channel', location: code.location || null, boxArea };
       }
-    } catch(e){/*ignore*/}
+    } catch(e) { console.warn('Enhanced channel decode error', color, e); }
     if (color === 'blue') {
       try {
-        const mask = createColorMask(imageData,color);
-        const code2 = jsQR(mask.data, mask.width, mask.height, { inversionAttempts: 'attemptBoth' });
-        if (code2 && code2.data) return { found:true, decoded: code2.data.trim(), colorFound: color, method:'Color-Mask' };
-      } catch(e){}
+        const maskImg = createColorMask(imageData, color);
+        const code = jsQR(maskImg.data, maskImg.width, maskImg.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          let boxArea = null;
+          if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
+            const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
+            const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
+            boxArea = Math.abs(w*h);
+          }
+          return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Color-Mask', location: code.location || null, boxArea };
+        }
+      } catch(e) { console.warn('Color mask decode error', color, e); }
     }
     if (cvReady) {
       try {
-        const cvp = detectWithOpenCV(imageData, color);
-        if (cvp) {
-          const code3 = jsQR(cvp.data, cvp.width, cvp.height, { inversionAttempts:'attemptBoth' });
-          if (code3 && code3.data) return { found:true, decoded: code3.data.trim(), colorFound: color, method:'OpenCV-HSV' };
+        const cvProcessed = detectWithOpenCV(imageData, color);
+        if (cvProcessed) {
+          const code = jsQR(cvProcessed.data, cvProcessed.width, cvProcessed.height, { inversionAttempts: 'attemptBoth' });
+          if (code && code.data) {
+            let boxArea = null;
+            if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
+              const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
+              const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
+              boxArea = Math.abs(w*h);
+            }
+            return { found: true, decoded: code.data.trim(), colorFound: color, method: 'OpenCV-HSV', location: code.location || null, boxArea };
+          }
         }
-      } catch(e){}
+      } catch(e) { console.warn('OpenCV approach failed for', color, e); }
+    }
+    if (color === 'blue') {
+      try {
+        const enhanced = enhanceBlueContrast(imageData);
+        const code = jsQR(enhanced.data, enhanced.width, enhanced.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          let boxArea = null;
+          if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
+            const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
+            const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
+            boxArea = Math.abs(w*h);
+          }
+          return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Blue-Enhanced', location: code.location || null, boxArea };
+        }
+      } catch(e) { console.warn('Blue enhancement failed', e); }
     }
   }
-  return { found:false };
+  return { found: false };
 }
 
-/* ---------- Progress UI ---------- */
-function updateProgressDisplay(){
+/* ---------------------------
+   Progress UI update
+   --------------------------- */
+function updateProgressDisplay() {
   const colors = ['red','green','blue'];
-  colors.forEach(color=>{
-    const el = color==='red'?progressRed:color==='green'?progressGreen:progressBlue;
-    if (foundResults.has(color)) { el.classList.add('found'); el.textContent = `${color.toUpperCase()} QR: ${foundResults.get(color).decoded}`; }
-    else { el.classList.remove('found'); el.textContent = `${color.charAt(0).toUpperCase()+color.slice(1)} QR: Scanning...`; }
+  colors.forEach(color => {
+    const el = color === 'red' ? progressRed : color === 'green' ? progressGreen : progressBlue;
+    if (foundResults.has(color)) {
+      el.classList.add('found');
+      el.textContent = `${color.toUpperCase()} QR: ${foundResults.get(color).decoded}`;
+    } else {
+      el.classList.remove('found');
+      el.textContent = `${color.charAt(0).toUpperCase() + color.slice(1)} QR: Scanning...`;
+    }
   });
-  announce(`${foundResults.size} of 3 QR codes found.`, false);
+  const foundCount = foundResults.size;
+  announce(`${foundCount} of 3 QR codes found.`, false);
 }
 
-/* ---------- Vibration helpers ---------- */
+/* ---------------------------
+   Vibration helpers
+   --------------------------- */
 let lastVibrateAt = 0;
 function vibrateProximityFromRatio(ratio) {
   if (!('vibrate' in navigator)) return;
-  const now = Date.now(); if (now - lastVibrateAt < 160) return; lastVibrateAt = now;
-  const intensity = Math.min(1, Math.max(0, (ratio - 0.02)/0.6));
-  const dur = Math.round(40 + intensity*280); const pattern=[dur,40];
-  try{ navigator.vibrate(pattern);}catch(e){}
+  const now = Date.now();
+  if (now - lastVibrateAt < 160) return;
+  lastVibrateAt = now;
+  const intensity = Math.min(1, Math.max(0, (ratio - 0.02) / 0.6));
+  const dur = Math.round(40 + intensity * 280);
+  const pattern = [dur, 40];
+  try { navigator.vibrate(pattern); } catch(e){}
 }
-function vibrateApproachPattern(ratio){
-  if (!('vibrate' in navigator)) return; if (ratio < 0.12) return;
-  const norm = Math.min(1, Math.max(0, (ratio-0.12)/0.68)); const pulses = 2 + Math.round(norm*6);
-  const strongMs = 60 + Math.round(norm*220); const gapMs = 40; const pattern=[];
-  for(let i=0;i<pulses;i++){ pattern.push(strongMs); if(i<pulses-1) pattern.push(gapMs);}
-  try{ navigator.vibrate(pattern);}catch(e){}
+function vibrateApproachPattern(ratio) {
+  if (!('vibrate' in navigator)) return;
+  if (ratio < 0.12) return;
+  const norm = Math.min(1, Math.max(0, (ratio - 0.12) / 0.68));
+  const pulses = 2 + Math.round(norm * 6);
+  const strongMs = 60 + Math.round(norm * 220);
+  const gapMs = 40;
+  const pattern = [];
+  for (let i=0;i<pulses;i++){ pattern.push(strongMs); if(i < pulses-1) pattern.push(gapMs); }
+  try { navigator.vibrate(pattern); } catch(e){}
 }
-function vibrateArrival(){ if (!('vibrate' in navigator)) return; try{ navigator.vibrate([80,40,80,40,120]); }catch(e){} }
+function vibrateArrival() {
+  if (!('vibrate' in navigator)) return;
+  try { navigator.vibrate([80,40,80,40,120]); } catch(e){}
+}
 
-/* ---------- Camera start/stop (mobile-focused) ---------- */
-async function startCamera(){
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment", width:{ideal:1280}, height:{ideal:720} }, audio:false });
-    const video = document.createElement('video'); video.autoplay=true; video.playsInline=true; video.muted=true;
+/* ---------------------------
+   Camera start/stop
+   --------------------------- */
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
+    });
+    const video = document.createElement('video');
+    video.autoplay = true; video.playsInline = true; video.muted = true;
     video.srcObject = stream;
     await video.play();
-
-    // set processing canvas and preview canvas sizes based on video, but keep preview full width for mobile
+    // set processing canvas to video size
     canvasDisp.width = video.videoWidth; canvasDisp.height = video.videoHeight;
-    // make previewCanvas width equals container width for mobile, but keep correct drawing size:
-    const containerWidth = Math.min(window.innerWidth - 20, video.videoWidth);
-    previewCanvas.width = containerWidth;
-    previewCanvas.height = Math.round(containerWidth * (video.videoHeight/video.videoWidth));
-    // maintain a larger scan box for mobile (centered)
-    scanBox.size = Math.min(SCAN_SIZE, Math.floor(Math.min(canvasDisp.width, canvasDisp.height) * 0.8));
-    scanBox.x = Math.floor((canvasDisp.width - scanBox.size)/2);
-    scanBox.y = Math.floor((canvasDisp.height - scanBox.size)/2);
-
-    foundResults.clear(); actionsTriggered=false; scannerRunning=true; userGesturePerformed=true;
-    announce("Camera started. Scanning for QR codes now. Sweep slowly.", true);
+    previewCanvas.width = Math.min(1280, video.videoWidth);
+    previewCanvas.height = Math.min(720, video.videoHeight);
+    scanBox.x = Math.floor((canvasDisp.width - SCAN_SIZE)/2);
+    scanBox.y = Math.floor((canvasDisp.height - SCAN_SIZE)/2);
+    scanStartTime = Date.now();
+    foundResults.clear();
+    actionsTriggered = false;
+    scannerRunning = true;
+    // copy frames by attaching video to processing loop closure
+    announce("Camera started. Scanning for QR codes. Point the phone at the QR.", true);
     updateProgressDisplay();
-    processFrame(video);
+    processFrame(video); // pass video element into loop
     startBtn.setAttribute('aria-pressed','true');
+    userGesturePerformed = true;
     return true;
-  }catch(e){
-    announce("Camera unavailable. Check permissions.", true);
-    log("Camera error: "+e);
+  } catch(e) {
+    announce("Camera access denied or unavailable. Check permissions and try again.", true);
+    log("Camera error: " + e);
     return false;
   }
 }
-function stopCamera(){
-  if (stream) stream.getTracks().forEach(t=>t.stop());
-  if (animationFrameId) cancelAnimationFrame(animationFrameId);
-  scannerRunning=false;
+function stopCamera() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+  scannerRunning = false;
   announce("Scanner stopped.", true);
   startBtn.setAttribute('aria-pressed','false');
   log("Camera stopped.");
 }
 
-/* ---------- Load coco ---------- */
-async function loadCocoModel(){ try{ announce("Loading object detection model.", false); log("Loading coco-ssd..."); cocoModel = await cocoSsd.load(); cocoReady=true; announce("Object detection ready.", false); log("coco loaded"); }catch(e){ cocoReady=false; log("coco failed "+e); announce("Object detection failed to load.", false);} }
+/* ---------------------------
+   Load coco model
+   --------------------------- */
+async function loadCocoModel() {
+  try {
+    announce("Loading object detection model. This may take a moment.", false);
+    log("Loading coco-ssd...");
+    cocoModel = await cocoSsd.load();
+    cocoReady = true;
+    announce("Object detection ready.", false);
+    log("coco-ssd loaded");
+  } catch(e) {
+    cocoReady = false;
+    log("coco load failed: " + e);
+    announce("Object detection failed to load.", false);
+  }
+}
 loadCocoModel();
 
-/* ---------- Speech recognition helper ---------- */
-function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInterim=null}={}) {
-  return new Promise(resolve=>{
-    const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR){ resolve(null); return; }
+/* ---------------------------
+   Speech recognition helper
+   --------------------------- */
+function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInterim=null} = {}) {
+  return new Promise((resolve) => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { resolve(null); return; }
     let recognition;
-    try{ recognition = new SR(); }catch(e){ resolve(null); return; }
+    try { recognition = new SR(); } catch(e) { resolve(null); return; }
     recognition.lang = lang; recognition.interimResults = interim; recognition.maxAlternatives = 3;
-    let finalTranscript=''; let resolved=false;
-    const timer = setTimeout(()=>{ if(!resolved){ resolved=true; try{ recognition.stop(); }catch(e){}; resolve(null); } }, timeout);
-    recognition.onresult = (evt)=>{
+    let finalTranscript = '';
+    let resolved = false;
+    const timer = setTimeout(() => {
+      if (!resolved) { resolved = true; try { recognition.stop(); } catch(e){}; resolve(null); }
+    }, timeout);
+    recognition.onresult = (evt) => {
       const results = Array.from(evt.results);
-      const interimText = results.map(r=>r[0].transcript).join(' ');
-      if(onInterim) onInterim(interimText);
-      for(const r of results) if(r.isFinal) finalTranscript = r[0].transcript;
-      if(finalTranscript && !resolved){ resolved=true; clearTimeout(timer); try{ recognition.stop(); }catch(e){}; resolve(finalTranscript.trim()); }
+      const interimText = results.map(r => r[0].transcript).join(' ');
+      if (onInterim) onInterim(interimText);
+      for (const r of results) { if (r.isFinal) finalTranscript = r[0].transcript; }
+      if (finalTranscript && !resolved) { resolved = true; clearTimeout(timer); try { recognition.stop(); } catch(e){}; resolve(finalTranscript.trim()); }
     };
-    recognition.onend = ()=>{ if(resolved) return; resolved=true; clearTimeout(timer); resolve(finalTranscript?finalTranscript.trim():null); };
-    recognition.onerror = ()=>{ if(resolved) return; resolved=true; clearTimeout(timer); try{ recognition.stop(); }catch(e){}; resolve(null); };
-    try{ recognition.start(); }catch(e){ clearTimeout(timer); resolve(null); }
+    recognition.onend = () => {
+      if (resolved) return;
+      resolved = true; clearTimeout(timer); resolve(finalTranscript ? finalTranscript.trim() : null);
+    };
+    recognition.onerror = (e) => {
+      if (resolved) return;
+      resolved = true; clearTimeout(timer); try { recognition.stop(); } catch(err){}; resolve(null);
+    };
+    try { recognition.start(); } catch(e) { clearTimeout(timer); resolve(null); }
   });
 }
 
-/* ---------- Draw preview & object boxes ---------- */
-function drawPreviewFrame(tmpCanvas){
-  try{
+/* ---------------------------
+   Utility to draw boxes for detections on preview canvas
+   --------------------------- */
+function drawPreviewFrame(tmpCanvas) {
+  // tmpCanvas contains full frame with scan box drawn already
+  // Scale draw onto previewCanvas while preserving aspect
+  try {
     previewCtx.clearRect(0,0,previewCanvas.width, previewCanvas.height);
     previewCtx.drawImage(tmpCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
-    // overlay detections
-    if(latestDetections && latestDetections.length){
+
+    // overlay object detections
+    if (latestDetections && latestDetections.length) {
       previewCtx.save();
-      previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width*0.004));
-      for(const d of latestDetections){
+      previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
+      for (const d of latestDetections) {
         const [x,y,w,h] = d.bbox;
-        const sx = previewCanvas.width / canvasDisp.width; const sy = previewCanvas.height / canvasDisp.height;
+        // scale from processing canvas to previewCanvas
+        const sx = previewCanvas.width / canvasDisp.width;
+        const sy = previewCanvas.height / canvasDisp.height;
         const rx = Math.round(x * sx), ry = Math.round(y * sy), rw = Math.round(w * sx), rh = Math.round(h * sy);
-        previewCtx.strokeStyle = 'rgba(255,80,80,0.95)'; previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
+        previewCtx.strokeStyle = 'rgba(255,80,80,0.95)';
+        previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
+        previewCtx.beginPath();
         previewCtx.strokeRect(rx, ry, rw, rh);
+        // label background
         const label = `${d.class} ${(d.score*100).toFixed(0)}%`;
-        previewCtx.font = "14px Arial";
+        previewCtx.font = `${14}px Arial`;
         const tw = previewCtx.measureText(label).width + 10;
-        previewCtx.fillRect(rx, Math.max(ry-22,0), tw, 20);
-        previewCtx.fillStyle = '#fff'; previewCtx.fillText(label, rx+5, Math.max(ry-8,12));
+        previewCtx.fillRect(rx, Math.max(ry-22, 0), tw, 20);
+        previewCtx.fillStyle = '#fff';
+        previewCtx.fillText(label, rx+5, Math.max(ry-8, 12));
         previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
       }
       previewCtx.restore();
     }
-  }catch(e){ console.warn("drawPreviewFrame", e); }
+  } catch(e) { console.warn("drawPreviewFrame error", e); }
 }
 
-/* ---------- Main processing loop ---------- */
-let qrDecoderBusy=false, frameSkipCounter=0;
+/* ---------------------------
+   Processing loop (QR + Object detection)
+   --------------------------- */
+let qrDecoderBusy = false, frameSkipCounter = 0;
+
 async function processFrame(video){
-  if(!scannerRunning) return;
+  if (!scannerRunning) return;
   animationFrameId = requestAnimationFrame(()=>processFrame(video));
-  if(!video || video.readyState < 2) return;
+  if (!video || video.readyState < 2) return;
   frameSkipCounter++;
-  if(frameSkipCounter % 3 !== 0 && foundResults.size < 3) return;
+  if (frameSkipCounter % 3 !== 0 && foundResults.size < 3) return;
 
   // draw video to processing canvas
   canvasDisp.width = video.videoWidth; canvasDisp.height = video.videoHeight;
   ctxDisp.drawImage(video, 0, 0, canvasDisp.width, canvasDisp.height);
 
-  // tmp for preview
-  const tmp = document.createElement('canvas'); tmp.width = canvasDisp.width; tmp.height = canvasDisp.height;
-  const tmpCtx = tmp.getContext('2d'); tmpCtx.drawImage(canvasDisp, 0, 0);
-  // draw scan rect
-  tmpCtx.strokeStyle = '#00ff88'; tmpCtx.lineWidth = Math.max(3, Math.round(canvasDisp.width*0.004)); tmpCtx.strokeRect(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
+  // create temporary preview canvas (for sighted helper) and draw scan box
+  const tmp = document.createElement('canvas');
+  tmp.width = canvasDisp.width; tmp.height = canvasDisp.height;
+  const tmpCtx = tmp.getContext('2d');
+  tmpCtx.drawImage(canvasDisp, 0, 0);
+  tmpCtx.strokeStyle = '#00ff00'; tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
+  tmpCtx.strokeRect(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
 
-  // draw object boxes on tmp too
-  if(latestDetections && latestDetections.length){
-    tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width*0.004));
-    for(const d of latestDetections){
-      tmpCtx.strokeStyle = 'rgba(255,80,80,0.95)'; tmpCtx.fillStyle = 'rgba(255,80,80,0.85)';
+  // if object detection boxes exist, we draw them here on tmp (scaled later)
+  if (latestDetections && latestDetections.length > 0 && enableDetectCheckbox.checked) {
+    tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
+    for (const d of latestDetections) {
+      tmpCtx.strokeStyle = 'rgba(255,80,80,0.9)';
+      tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
       const [x,y,w,h] = d.bbox;
-      tmpCtx.strokeRect(x,y,w,h);
+      tmpCtx.strokeRect(x, y, w, h);
       const label = `${d.class} ${(d.score*100).toFixed(0)}%`;
-      const tw = tmpCtx.measureText(label).width + 10;
-      tmpCtx.fillRect(x, Math.max(y-22,0), tw, 20);
-      tmpCtx.fillStyle = '#fff'; tmpCtx.fillText(label, x+5, Math.max(y-8,12));
-      tmpCtx.fillStyle = 'rgba(255,80,80,0.85)';
+      const labelW = tmpCtx.measureText(label).width + 10;
+      tmpCtx.fillRect(x, Math.max(y-22,0), labelW, 20);
+      tmpCtx.fillStyle = '#fff';
+      tmpCtx.fillText(label, x+5, Math.max(y-8, 12));
+      tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
     }
   }
 
+  // draw to visible preview (with boxes)
   drawPreviewFrame(tmp);
 
-  if(qrDecoderBusy) return;
-  qrDecoderBusy=true;
-  setTimeout(async ()=>{
-    try{
+  if (qrDecoderBusy) return;
+  qrDecoderBusy = true;
+
+  setTimeout(async () => {
+    try {
       const imageData = ctxDisp.getImageData(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
       const targetFilter = (colorFilterEl.value === "Any") ? null : colorFilterEl.value.toLowerCase();
-      const order = targetFilter ? [targetFilter] : ['blue','red','green'];
-      for(const color of order){
-        if(foundResults.has(color)) continue;
+      const colorOrder = targetFilter ? [targetFilter] : ['blue','red','green'];
+      for (const color of colorOrder) {
+        if (foundResults.has(color)) continue;
         const detection = detect_colored_qr_in_frame_js(imageData, color);
-        if(detection.found && detection.decoded){
+        if (detection.found && detection.decoded) {
           const decodedClean = detection.decoded.trim();
           foundResults.set(color, { decoded: decodedClean, method: detection.method || 'unknown', boxArea: detection.boxArea || null });
           announce(`${color} QR found: ${decodedClean}`, true);
           updateProgressDisplay();
-          if(detection.boxArea){
+          if (detection.boxArea) {
             const scanArea = scanBox.size * scanBox.size;
             const ratio = detection.boxArea / scanArea;
             vibrateProximityFromRatio(ratio);
-            if(ratio >= 0.15) vibrateApproachPattern(ratio);
+            if (ratio >= 0.15) vibrateApproachPattern(ratio);
           }
           handleDecoded(decodedClean, color);
           break;
@@ -590,232 +820,353 @@ async function processFrame(video){
 
       const allColors = ['red','green','blue'];
       const foundColors = Array.from(foundResults.keys());
-      if(!actionsTriggered && allColors.every(c=>foundColors.includes(c))) triggerAllActionsOnce();
+      if (!actionsTriggered && allColors.every(c => foundColors.includes(c))) {
+        triggerAllActionsOnce();
+      }
 
-      // object detection periodically
+      // Object detection (periodic)
       const now = performance.now();
-      if(enableDetectCheckbox.checked && cocoReady && (now - lastDetectTime > DETECTION_INTERVAL_MS)){
+      if (enableDetectCheckbox.checked && cocoReady && (now - lastDetectTime > DETECTION_INTERVAL_MS)) {
         lastDetectTime = now;
-        try{
+        try {
           const off = document.createElement('canvas');
           const D_W = 480;
           const scale = D_W / canvasDisp.width;
-          off.width = D_W; off.height = Math.floor(canvasDisp.height * scale);
-          const offCtx = off.getContext('2d'); offCtx.drawImage(canvasDisp, 0, 0, off.width, off.height);
+          off.width = D_W;
+          off.height = Math.floor(canvasDisp.height * scale);
+          const offCtx = off.getContext('2d');
+          offCtx.drawImage(canvasDisp, 0, 0, off.width, off.height);
           const predictions = await cocoModel.detect(off);
           const preds = predictions.filter(p => p.score >= SCORE_THRESHOLD);
           const scaleBack = canvasDisp.width / off.width;
-          latestDetections = preds.map(p => { const [x,y,w,h] = p.bbox; return { class: p.class, score: p.score, bbox: [x*scaleBack, y*scaleBack, w*scaleBack, h*scaleBack] }; });
+          latestDetections = preds.map(p => {
+            const [x,y,w,h] = p.bbox;
+            return { class: p.class, score: p.score, bbox: [x*scaleBack, y*scaleBack, w*scaleBack, h*scaleBack] };
+          });
 
-          // update alerts list
-          updateAlertsList(latestDetections.slice(0,4));
-
-          // pick harmful candidate
-          let candidate = null; const fh = canvasDisp.height, fw = canvasDisp.width;
-          for(const det of latestDetections){
-            if(!HARMFUL_CLASSES.has(det.class)) continue;
-            const [x,y,w,h] = det.bbox; const cx = x + w/2;
-            const centerDelta = Math.abs(cx - fw/2)/fw; const score = (h/fh)*(1.0 - Math.min(centerDelta/0.5,1.0));
-            if(!candidate||score>candidate.score) candidate={det,score};
+          // update alerts list (top 3)
+          if (latestDetections.length) {
+            updateAlertsList(latestDetections.slice(0,4));
           }
-          if(candidate){
-            const det = candidate.det; const [x,y,w,h] = det.bbox; const cx = x + w/2;
-            const centerDelta = Math.abs(cx - fw/2)/fw; const isAhead = (centerDelta <= CENTER_TOLERANCE) && (h/fh >= 0.06);
-            if(isAhead){
-              const cls = det.class; const nowTs = Date.now();
-              if(!lastAlertAt[cls] || (nowTs - lastAlertAt[cls] > alertCooldown)){
-                const ratio = (h/fh); let distMeters = (DISTANCE_ESTIMATE_SCALE / Math.max(ratio,0.02)); distMeters = Math.min(Math.max(distMeters,0.2),50);
-                if(distMeters <= 5.0){
+
+          // choose harmful candidate for voice alert
+          let candidate = null;
+          const fh = canvasDisp.height;
+          const fw = canvasDisp.width;
+          for (const det of latestDetections) {
+            if (!HARMFUL_CLASSES.has(det.class)) continue;
+            const [x,y,w,h] = det.bbox;
+            const cx = x + w/2;
+            const centerDelta = Math.abs(cx - fw/2) / fw;
+            const score = (h / fh) * (1.0 - Math.min(centerDelta / 0.5, 1.0));
+            if (!candidate || score > candidate.score) candidate = {det, score};
+          }
+          if (candidate) {
+            const det = candidate.det;
+            const [x,y,w,h] = det.bbox;
+            const cx = x + w/2;
+            const centerDelta = Math.abs(cx - fw/2) / fw;
+            const isAhead = (centerDelta <= CENTER_TOLERANCE) && (h / fh >= 0.06);
+            if (isAhead) {
+              const cls = det.class;
+              const nowTs = Date.now();
+              if (!lastAlertAt[cls] || (nowTs - lastAlertAt[cls] > alertCooldown)) {
+                const ratio = (h / fh);
+                let distMeters = (DISTANCE_ESTIMATE_SCALE / Math.max(ratio, 0.02));
+                distMeters = Math.min(Math.max(distMeters, 0.2), 50.0);
+                if (distMeters <= 5.0) {
                   announce(`Obstacle ahead: ${cls}, approximately ${distMeters.toFixed(1)} meters.`, false);
-                  lastAlertAt[cls] = nowTs; log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`);
+                  lastAlertAt[cls] = nowTs;
+                  log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`);
                 } else {
-                  log(`[OBSTACLE] ${cls} detected but ${distMeters.toFixed(1)}m away (>5m)`);
+                  log(`[OBSTACLE] ${cls} detected but ${distMeters.toFixed(1)}m away (>5m) - no alert`);
                 }
               }
             }
           }
-        }catch(e){ console.warn("Object detection error", e); }
+        } catch(e) {
+          console.warn("Object detection error:", e);
+        }
       }
 
-    }catch(e){ console.error("Frame error", e); } finally { qrDecoderBusy = false; }
+    } catch(e) {
+      console.error("Frame processing error:", e);
+    } finally {
+      qrDecoderBusy = false;
+    }
   }, 36);
 }
 
-/* ---------- Alerts list ---------- */
-function updateAlertsList(dets){
+/* ---------------------------
+   Alerts list UI
+   --------------------------- */
+function updateAlertsList(dets) {
   alertsList.innerHTML = '';
-  if(dets.length === 0){ const li = document.createElement('li'); li.textContent = 'No recent alerts'; alertsList.appendChild(li); return; }
-  for(const d of dets){ const li = document.createElement('li'); li.textContent = `${d.class} ${(d.score*100).toFixed(0)}%`; alertsList.appendChild(li); }
+  for (const d of dets) {
+    const li = document.createElement('li');
+    li.textContent = `${d.class} ${(d.score*100).toFixed(0)}%`;
+    alertsList.appendChild(li);
+  }
+  if (dets.length === 0) {
+    const li = document.createElement('li'); li.textContent = 'No recent alerts'; alertsList.appendChild(li);
+  }
 }
 
-/* ---------- When all 3 QR found ---------- */
+/* ---------------------------
+   After 3 QRs found - auto follow-up
+   --------------------------- */
 function triggerAllActionsOnce(){
-  if(actionsTriggered) return; actionsTriggered = true;
+  if (actionsTriggered) return;
+  actionsTriggered = true;
   log("All three color QR codes detected");
   announce("All QR codes detected. Processing information now.", true);
-  const greenQR = foundResults.get('green')?.decoded || ''; const blueQR = foundResults.get('blue')?.decoded || ''; const redQR = foundResults.get('red')?.decoded || '';
+  const greenQR = foundResults.get('green')?.decoded || '';
+  const blueQR = foundResults.get('blue')?.decoded || '';
+  const redQR = foundResults.get('red')?.decoded || '';
   stopCamera();
-  setTimeout(()=>{ log("Map info: "+greenQR); announce("Map information available.", false); drawMap(); mapModal.style.display = 'flex'; },700);
-  setTimeout(()=>{ log("Accessibility: "+blueQR); announce("Accessibility information: "+blueQR, false); },1500);
-  setTimeout(()=>{ currentLocation = redQR; log("Current location: "+redQR); announce("Your current location is "+redQR, false); },2500);
-  setTimeout(()=>{ if(SR_AVAILABLE){ announce("I will listen for your destination now.", true); ask_destination_via_voice(); } else { show_destination_modal(); } },3600);
+  setTimeout(()=>{ log("Map info: " + greenQR); announce("Map information available.", false); drawMap(); mapModal.style.display = 'flex'; }, 700);
+  setTimeout(()=>{ log("Accessibility: " + blueQR); announce("Accessibility information: " + blueQR, false); }, 1500);
+  setTimeout(()=>{ currentLocation = redQR; log("Current location: " + redQR); announce("Your current location is " + redQR, false); }, 2500);
+  // IMPORTANT: do NOT ask user to press Voice button — start voice listening automatically (best-effort)
+  setTimeout(()=>{ if (SR_AVAILABLE) { announce("I will listen for your destination now.", true); ask_destination_via_voice(); } else { show_destination_modal(); } }, 3600);
 }
 
-/* ---------- Destination flow (voice-first). If user says NO -> ask again. ---------- */
-function show_destination_modal(){
-  if(!currentLocation){ alert("No current location detected. Please scan QR codes first."); return; }
-  const candidates = Object.keys(node_coords).filter(n=>n!==currentLocation);
+/* ---------------------------
+   Destination selection & voice handling
+   --------------------------- */
+function show_destination_modal() {
+  if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
+  const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
   const candidateList = candidates.map((p,i)=>`${i+1}. ${p}`).join('\n');
   announce("Opening text selection. Check the screen for options.", false);
   const dest = prompt(`Current: ${currentLocation}\nAvailable:\n${candidateList}\n\nType name or number:`);
-  if(!dest){ announce("No destination selected.", false); return; }
-  let destination = dest.trim(); const destNumber = parseInt(destination);
-  if(!isNaN(destNumber) && destNumber>=1 && destNumber<=candidates.length) destination = candidates[destNumber-1];
-  else { const best = findBestLocationMatch(destination, candidates); if(best) destination = best; else { announce("Destination not found. Please try voice input.", false); setTimeout(()=>ask_destination_via_voice(),600); return; } }
+  if (!dest) { announce("No destination selected.", false); return; }
+  let destination = dest.trim();
+  const destNumber = parseInt(destination);
+  if (!isNaN(destNumber) && destNumber >=1 && destNumber <= candidates.length) {
+    destination = candidates[destNumber-1];
+  } else {
+    const best = findBestLocationMatch(destination, candidates);
+    if (best) destination = best;
+    else { announce("Destination not found. Please try voice input.", false); setTimeout(()=>ask_destination_via_voice(), 600); return; }
+  }
   announce(`You selected ${destination}. Confirming.`, false);
-  if(confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
-  else { announce("Selection cancelled. Try again.", false); setTimeout(()=>show_destination_modal(),500); }
+  if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
+  else { announce("Selection cancelled. Try again.", false); setTimeout(()=>show_destination_modal(), 500); }
 }
 
-function findBestLocationMatch(input, candidates){
+function findBestLocationMatch(input, candidates) {
   const s = input.toLowerCase().trim();
-  let m = candidates.find(c=>c.toLowerCase()===s); if(m) return m;
-  m = candidates.find(c=>c.toLowerCase().includes(s)); if(m) return m;
-  m = candidates.find(c=>c.toLowerCase().split(' ').some(word => s.includes(word) || word.includes(s))); if(m) return m;
+  let m = candidates.find(c=>c.toLowerCase()===s);
+  if (m) return m;
+  m = candidates.find(c=>c.toLowerCase().includes(s));
+  if (m) return m;
+  m = candidates.find(c=>c.toLowerCase().split(' ').some(word => s.includes(word) || word.includes(s)));
+  if (m) return m;
   return null;
 }
 
 async function ask_destination_via_voice(){
-  if(!currentLocation){ announce("No current location. Scan first.", false); return; }
-  if(!SR_AVAILABLE){ announce("Speech recognition unavailable. Please use text input.", false); show_destination_modal(); return; }
-  if(!userGesturePerformed){ announce("If voice input is blocked, press the small Voice Dest button once to allow microphone.", false); }
+  if (!currentLocation) { announce("No current location. Scan first.", false); return; }
+  if (!SR_AVAILABLE) { announce("Speech recognition not available. Please use text input.", false); show_destination_modal(); return; }
 
-  const negativeWords = ['no','nah','nope','not','dont','don\'t','wrong','incorrect','negative'];
-  const confirmationYesWords = ['yes','yeah','yep','correct','right','affirmative','sure'];
-
-  let attempts = 0;
-  while(attempts < 6){
-    attempts++;
+  // Try to start SR automatically (many browsers allow if started after a user gesture like Start Scan).
+  // If SR fails (returns null), we will gently ask for permission as a fallback.
+  let tries = 0;
+  while (tries < 4) {
+    tries++;
     announce("Please say your destination after the beep.", true);
-    listeningBox.style.display = 'block'; listeningBox.textContent = "Listening…";
-    const transcript = await startSpeechRecognition({lang:'en-US', interim:true, timeout:9000, onInterim:(t)=>{ listeningBox.textContent = "Listening… " + t; }});
-    listeningBox.style.display = 'none';
-    if(!transcript){ log("No transcript"); announce("I didn't catch that. Let's try again.", false); continue; }
-    log("Destination recognized: " + transcript);
-    const candidates = Object.keys(node_coords).filter(n=>n!==currentLocation);
+    await new Promise(r=>setTimeout(r,700));
+    const interimBox = document.getElementById('listeningBox');
+    interimBox.style.display = 'block'; interimBox.textContent = "Listening… (speak now)";
+    const transcript = await startSpeechRecognition({lang:'en-US', interim:true, timeout:9000, onInterim:(t)=>{ interimBox.textContent = "Listening… " + t; }});
+    interimBox.textContent = '';
+    if (!transcript) {
+      log("No transcript");
+      // On some browsers, SR cannot start without explicit permission/gesture.
+      if (!userGesturePerformed && tries === 1) {
+        // gentle fallback instruction spoken (only when automatic start fails)
+        announce("I could not access the microphone automatically. If you allow microphone access, press the Voice Destination button once. Then speak after the beep.", false);
+        // show visual hint
+        voiceDestBtn.classList.add('secondary');
+        // wait small time for user to press button if they want; we still continue loop to try again automatically
+        await new Promise(r=>setTimeout(r,1500));
+        continue;
+      }
+      announce("I didn't catch that. Let's try again.", false);
+      continue;
+    }
+    log("Recognized: " + transcript);
+    const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
     const bestMatch = findBestLocationMatch(transcript, candidates);
-    if(!bestMatch){ announce("I couldn't find a matching location. Please say the destination again.", false); continue; }
+    if (!bestMatch) { announce("I couldn't find that location. Please say your destination again.", false); continue; }
 
-    // ask confirmation
-    announce(`Did you mean ${bestMatch}? Please say yes or no.`, false);
-    await new Promise(r=>setTimeout(r,500));
-    listeningBox.style.display = 'block'; listeningBox.textContent = "Listening for confirmation…";
+    announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
+    await new Promise(r=>setTimeout(r,600));
     const conf = await startSpeechRecognition({lang:'en-US', interim:false, timeout:6000});
-    listeningBox.style.display = 'none';
-    if(!conf){
-      // if no confirmation, fallback to confirm dialog for robustness
+    if (!conf) {
       const ok = confirm(`Did you mean ${bestMatch}? Press OK for yes.`);
-      if(ok){ start_navigation(bestMatch); return; } else { announce("Okay, please say your destination again.", false); continue; }
+      if (ok) { start_navigation(bestMatch); return; }
+      else { announce("Okay, let's try again.", false); continue; }
     }
-    const confLower = conf.toLowerCase();
-    log("Confirmation: " + confLower);
-
-    // If user explicitly says yes -> proceed
-    if(confirmationYesWords.some(w=>confLower.includes(w))){
+    const settled = conf.toLowerCase();
+    log("Confirmation: " + settled);
+    if (settled.includes('yes') || settled.includes('yeah') || settled.includes('correct')) {
       start_navigation(bestMatch); return;
+    } else {
+      announce("Okay, please say your destination again.", false);
+      continue;
     }
-    // If user says negative (no) -> ask again for destination (loop)
-    if(negativeWords.some(w=>confLower.includes(w))){
-      announce("Okay, I will listen for your destination again.", false);
-      continue; // loop again to ask destination
-    }
-    // If unclear -> try one more time
-    announce("I couldn't understand confirmation. Please say your destination again.", false);
   }
-  // exhausted attempts
   announce("Voice input failed repeatedly. Please type destination instead.", false);
   show_destination_modal();
 }
 
-/* ---------- Navigation flow ---------- */
-function start_navigation(destination){
-  if(!currentLocation){ announce("No current location. Scan first.", false); return; }
-  if(!destination){ announce("No destination selected.", false); return; }
+/* ---------------------------
+   Navigation flow
+   --------------------------- */
+function start_navigation(destination) {
+  if (!currentLocation) { announce("No current location. Scan QR codes first.", false); return; }
+  if (!destination) { announce("No destination selected.", false); return; }
   const res = dijkstra(graph, currentLocation, destination);
-  if(!res.path.length || res.cost === Infinity){ announce("No path found.", false); alert("No path found."); return; }
-  announce(`Navigation started to ${destination}. Total ${Math.round(res.cost)} meters.`, true);
+  if (!res.path.length || res.cost === Infinity) { announce("No path found to that destination.", false); alert("Routing error: no path found."); return; }
+  announce(`Navigation started to ${destination}. Total distance ${Math.round(res.cost)} meters.`, true);
   navigationDialog(res.path, res.cost);
 }
-function navigationDialog(path, total_cost){
-  let idx=0; currentNavigationTarget = path[path.length-1];
+
+function navigationDialog(path, total_cost) {
+  let idx = 0;
+  currentNavigationTarget = path[path.length - 1];
   async function showStep(){
-    if(idx >= path.length-1){
-      const finalText = `Approaching destination ${path[path.length-1]}. Look for QR code to confirm arrival.`;
-      announce(finalText,true);
-      overlayText.textContent = `Final: look for ${path[path.length-1]} QR`;
-      setTimeout(()=>{ if(!scannerRunning) startCamera(); },1200);
+    if (idx >= path.length - 1) {
+      const finalText = `Approaching destination ${path[path.length - 1]}. Look for QR code to confirm arrival.`;
+      announce(finalText, true);
+      overlayText.textContent = `Final: Look for ${path[path.length - 1]} QR`;
+      setTimeout(()=>{ if (!scannerRunning) startCamera(); }, 1200);
       return;
     }
-    const current = path[idx]; const next = path[idx+1];
-    let instruction = idx===0? `${get_initial_direction_simple(node_coords[current], node_coords[next])} towards ${next}.` : `At ${current}: ${get_turn_direction(node_coords[path[idx-1]], node_coords[current], node_coords[next])} towards ${next}.`;
+    const current = path[idx]; const next = path[idx + 1];
+    let instruction;
+    if (idx === 0) instruction = `${get_initial_direction_simple(node_coords[current], node_coords[next])} towards ${next}.`;
+    else instruction = `At ${current}: ${get_turn_direction(node_coords[path[idx-1]], node_coords[current], node_coords[next])} towards ${next}.`;
     const distance = (graph[current] && graph[current][next]) ? graph[current][next] : 0;
     const spoken = `${instruction} Distance ${Math.round(distance)} meters.`;
-    announce(spoken,false); overlayText.textContent = `Step ${idx+1}: ${instruction}`;
+    announce(spoken, false);
+    overlayText.textContent = `Step ${idx+1}: ${instruction}`;
     const ok = confirm(spoken + "\n\nPress OK for next step, Cancel to stop navigation.");
-    if(ok){ idx++; setTimeout(showStep,700); } else { announce("Navigation cancelled.", true); currentNavigationTarget=null; overlayText.textContent="Navigation cancelled"; }
+    if (ok) { idx++; setTimeout(showStep, 700); }
+    else { announce("Navigation cancelled.", true); currentNavigationTarget = null; overlayText.textContent = "Navigation cancelled"; }
   }
   showStep();
 }
 
-/* ---------- Arrival handling ---------- */
-function handleDecoded(decoded, color){
+/* ---------------------------
+   Arrival handling & QR decoded callback
+   --------------------------- */
+function handleDecoded(decoded, color) {
   const decodedClean = decoded.trim();
-  if(currentNavigationTarget){
-    const target = (currentNavigationTarget||"").toLowerCase(); const detected = decodedClean.toLowerCase();
-    if(detected===target || detected.includes(target) || target.includes(detected)){
-      log("Arrival confirmed: "+decodedClean); announce(`You have arrived at ${decodedClean}.`, true); currentLocation=decodedClean; currentNavigationTarget=null; stopCamera(); vibrateArrival(); setTimeout(()=>{ alert(`Arrival confirmed: ${decodedClean}`); },800); return;
+  if (currentNavigationTarget) {
+    const target = (currentNavigationTarget || "").toLowerCase();
+    const detected = decodedClean.toLowerCase();
+    if (detected === target || detected.includes(target) || target.includes(detected)) {
+      log("Arrival confirmed: " + decodedClean);
+      announce(`You have arrived at ${decodedClean}.`, true);
+      currentLocation = decodedClean; currentNavigationTarget = null;
+      stopCamera();
+      vibrateArrival();
+      setTimeout(()=>{ alert(`Arrival confirmed: ${decodedClean}`); }, 800);
+      return;
     } else {
-      if(decodedClean !== currentLocation){ currentLocation = decodedClean; log("Passed checkpoint: "+decodedClean); announce(`Passed ${decodedClean}`, false); }
+      if (decodedClean !== currentLocation) {
+        currentLocation = decodedClean;
+        log("Passed checkpoint: " + decodedClean);
+        announce(`Passed ${decodedClean}`, false);
+      }
       return;
     }
   }
-  if(decodedClean !== currentLocation){
-    currentLocation = decodedClean; log("Current location updated: "+decodedClean); announce(`Current location: ${decodedClean}`, false);
-    setTimeout(()=>{ announce("When ready, speak your destination. The app will listen automatically.", false); },900);
+  if (decodedClean !== currentLocation) {
+    currentLocation = decodedClean;
+    log("Current location updated: " + decodedClean);
+    announce(`Current location: ${decodedClean}`, false);
+    setTimeout(()=>{ announce("When ready, speak your destination. The app will listen automatically.", false); }, 900);
   }
 }
 
-/* ---------- Map drawing ---------- */
-function drawMap(){
-  const ctx = mapCanvas.getContext('2d'); ctx.clearRect(0,0,mapCanvas.width,mapCanvas.height);
+/* ---------------------------
+   Map drawing
+   --------------------------- */
+function drawMap() {
+  const ctx = mapCanvas.getContext('2d');
+  ctx.clearRect(0,0,mapCanvas.width,mapCanvas.height);
   const cw = mapCanvas.width, ch = mapCanvas.height, margin = 40;
-  const xs = Object.values(node_coords).map(p=>p[0]); const ys = Object.values(node_coords).map(p=>p[1]);
-  const minx = Math.min(...xs), maxx = Math.max(...xs); const miny = Math.min(...ys), maxy = Math.max(...ys);
-  const project = (p)=>{ const sx=(p[0]-minx)/(maxx-minx||1); const sy=(p[1]-miny)/(maxy-miny||1); return [margin + Math.floor(sx*(cw-margin*2)), margin + Math.floor(sy*(ch-margin*2))]; };
-  ctx.strokeStyle="#bbb"; ctx.lineWidth=1;
-  for(const a in graph){ for(const b in graph[a]){ if(node_coords[a] && node_coords[b]){ const pa=project(node_coords[a]); const pb=project(node_coords[b]); ctx.beginPath(); ctx.moveTo(pa[0],pa[1]); ctx.lineTo(pb[0],pb[1]); ctx.stroke(); } } }
-  ctx.font="14px Arial";
-  for(const name in node_coords){ const p=project(node_coords[name]); if(name===currentLocation){ ctx.fillStyle="#ff4444"; ctx.beginPath(); ctx.arc(p[0],p[1],8,0,Math.PI*2); ctx.fill(); } else { ctx.fillStyle="#333"; ctx.beginPath(); ctx.arc(p[0],p[1],4,0,Math.PI*2); ctx.fill(); } ctx.fillStyle="#000"; ctx.fillText(name,p[0]+10,p[1]+4); }
+  const xs = Object.values(node_coords).map(p => p[0]);
+  const ys = Object.values(node_coords).map(p => p[1]);
+  const minx = Math.min(...xs), maxx = Math.max(...xs);
+  const miny = Math.min(...ys), maxy = Math.max(...ys);
+  const project = (p) => {
+    const sx = (p[0] - minx) / (maxx - minx || 1);
+    const sy = (p[1] - miny) / (maxy - miny || 1);
+    return [ margin + Math.floor(sx * (cw - margin * 2)), margin + Math.floor(sy * (ch - margin * 2)) ];
+  };
+  ctx.strokeStyle = "#bbb"; ctx.lineWidth = 1;
+  for (const a in graph) {
+    for (const b in graph[a]) {
+      if (node_coords[a] && node_coords[b]) {
+        const pa = project(node_coords[a]); const pb = project(node_coords[b]);
+        ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();
+      }
+    }
+  }
+  ctx.font = "14px Arial";
+  for (const name in node_coords) {
+    const p = project(node_coords[name]);
+    if (name === currentLocation) {
+      ctx.fillStyle = "#ff4444"; ctx.beginPath(); ctx.arc(p[0], p[1], 8, 0, Math.PI*2); ctx.fill();
+    } else {
+      ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(p[0], p[1], 4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle = "#000"; ctx.fillText(name, p[0]+10, p[1]+4);
+  }
 }
 
-/* ---------- UI events & keyboard ---------- */
-startBtn.onclick = async ()=>{ if(scannerRunning){ announce("Scanner already running.", false); return; } userGesturePerformed=true; await startCamera(); };
-stopBtn.onclick = ()=>{ stopCamera(); };
-restartBtn.onclick = ()=>{ stopCamera(); foundResults.clear(); actionsTriggered=false; setTimeout(()=>startBtn.click(),300); };
-voiceDestBtn.onclick = ()=>{ userGesturePerformed=true; ask_destination_via_voice(); };
-mapBtn.onclick = ()=>{ drawMap(); mapModal.style.display='flex'; announce("Map opened.", false); };
-closeMap.onclick = ()=>{ mapModal.style.display='none'; announce("Map closed.", false); };
+/* ---------------------------
+   UI event handlers & keyboard shortcuts
+   --------------------------- */
+startBtn.onclick = async () => { if (scannerRunning) { announce("Scanner already running.", false); return; } userGesturePerformed = true; await startCamera(); };
+stopBtn.onclick = () => { stopCamera(); };
+restartBtn.onclick = () => { stopCamera(); foundResults.clear(); actionsTriggered=false; scanStartTime = Date.now(); setTimeout(()=>{ startBtn.click(); },300); };
+voiceDestBtn.onclick = () => { userGesturePerformed = true; ask_destination_via_voice(); };
+mapBtn.onclick = () => { drawMap(); mapModal.style.display = 'flex'; announce("Map opened. Close when ready.", false); };
+closeMap.onclick = () => { mapModal.style.display = 'none'; announce("Map closed.", false); };
 
-window.addEventListener('keydown',(e)=>{ if(e.key==='s'||e.key==='S') startBtn.click(); if(e.key==='v'||e.key==='V') voiceDestBtn.click(); if(e.key==='m'||e.key==='M') mapBtn.click(); if(e.key==='r'||e.key==='R') restartBtn.click(); if(e.code==='Space'){ e.preventDefault(); stopBtn.click(); } });
+window.addEventListener('keydown', (e) => {
+  if (e.key === 's' || e.key === 'S') { startBtn.click(); }
+  if (e.key === 'v' || e.key === 'V') { voiceDestBtn.click(); }
+  if (e.key === 'm' || e.key === 'M') { mapBtn.click(); }
+  if (e.key === 'r' || e.key === 'R') { restartBtn.click(); }
+  if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
+});
 
-/* ---------- OpenCV init ---------- */
-let cvReady=false;
-function onOpenCvReady(){ cvReady=true; log("OpenCV ready"); announce("OpenCV loaded.", false); }
-if(typeof cv !== 'undefined'){ if(cv && cv.Mat) onOpenCvReady(); else cv['onRuntimeInitialized']=onOpenCvReady; } else { setTimeout(()=>{ if(!cvReady) announce("OpenCV not loaded; using JS fallback.", false); },7000); }
+/* ---------------------------
+   OpenCV init
+   --------------------------- */
+function onOpenCvReady(){ cvReady = true; log("OpenCV ready"); announce("OpenCV loaded - improved color detection available.", false); }
+if (typeof cv !== 'undefined') {
+  if (cv && cv.Mat) onOpenCvReady();
+  else cv['onRuntimeInitialized'] = onOpenCvReady;
+} else {
+  setTimeout(()=>{ if (!cvReady) announce("OpenCV not loaded. Falling back to JS color detection.", false); }, 7000);
+}
 
-/* ---------- init ---------- */
-announce("Ready. Press Start Scan to begin scanning for three color QR codes. The app will listen automatically when needed.", false);
-log("App initialised. Speech recognition available: " + (SR_AVAILABLE? 'yes' : 'no'));
+/* ---------------------------
+   Cleanup and init messages
+   --------------------------- */
+window.addEventListener('beforeunload', ()=>{ if (stream) stream.getTracks().forEach(t=>t.stop()); speechSynthesis.cancel(); });
+
+announce("Ready. Start Scan to begin scanning for three color QR codes. The app will listen automatically when needed.", false);
+log("App initialized. Speech recognition available: " + (SR_AVAILABLE ? 'yes' : 'no'));
+log("Scan sequence: Red (location) + Green (map) + Blue (accessibility)");
 
 </script>
 </body>
