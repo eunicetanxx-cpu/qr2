@@ -63,6 +63,7 @@
 
     #previewWrap { display:flex; gap:12px; margin-top:14px; align-items:flex-start; justify-content:center; }
     #previewCanvas {
+    
       height: auto;
       background: #000;
       border-radius: 10px;
@@ -93,7 +94,7 @@
     }
   </style>
 
-  <!-- External Libraries -->
+  <!-- libs -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
@@ -171,7 +172,7 @@
   </div>
 
 <script>
-/* ---------- DOM ---------- */
+/*  small helpers & DOM */ 
 const overlayText = document.getElementById('overlayText');
 const srAnnounce = document.getElementById('srAnnounce');
 const previewCanvas = document.getElementById('previewCanvas');
@@ -195,22 +196,16 @@ const enableDetectCheckbox = document.getElementById('enableDetect');
 const alertsList = document.getElementById('alertsList');
 
 const log = (m) => { console.log(m); const t = new Date().toLocaleTimeString(); logEl.innerText += `[${t}] ${m}\n`; logEl.scrollTop = logEl.scrollHeight; };
+
+/* backendLog — log backend events without spoken feedback */
 function backendLog(m) { console.log("[BACKEND] " + m); const t = new Date().toLocaleTimeString(); logEl.innerText += `[${t}] [BACKEND] ${m}\n`; logEl.scrollTop = logEl.scrollHeight; }
 
-/* ---------- STATE ---------- */
+/* state  */
 const SCAN_SIZE = 360;
 let scanBox = { x: 0, y: 0, size: SCAN_SIZE };
 let cvReady = false, animationFrameId = null, stream = null, scannerRunning = false;
-let foundResults = new Map(), scanStartTime = Date.now(), currentLocation = null;
-
-let finalDestination = null; // user chosen final destination (set only once)
-let currentNavigationTarget = null; // used for arrival confirmations
-let navigationActive = false;
-let isFirstLocationSet = false;
-let actionsTriggered = false;
-let arrivalLock = false; // when true, other announcements won't override the arrival sound
-
-let latestDetections = [], userGesturePerformed = false;
+let foundResults = new Map(), scanStartTime = Date.now(), currentLocation = null, currentNavigationTarget = null;
+let latestDetections = [], actionsTriggered = false;
 
 let cocoModel = null, cocoReady = false;
 const DETECTION_INTERVAL_MS = 900, SCORE_THRESHOLD = 0.45, CENTER_TOLERANCE = 0.25;
@@ -218,146 +213,57 @@ const DISTANCE_ESTIMATE_SCALE = 1.6; let lastDetectTime = 0;
 const alertCooldown = 3000; const lastAlertAt = {};
 const HARMFUL_CLASSES = new Set(['person','chair','couch','bench','dining table','stop sign','tv','suitcase','backpack','bed','toilet']);
 
-/* ---------- TTS QUEUE + arrival handling ---------- */
+let userGesturePerformed = false;
+
+/*  TTS simple queue*/
 const TTS = {
   queue: [], speaking: false,
-  speak(text, interrupt=false, onend=null) {
-    if (!text) return;
-    // If arrivalLock is set, block anything that tries to queue unless they explicitly interrupt.
-    if (arrivalLock && !interrupt) {
-      // do not queue new messages during arrivalLock
-      console.log("TTS suppressed due to arrival lock:", text);
-      return;
-    }
-    if (interrupt) {
-      this.queue = [];
-      try { speechSynthesis.cancel(); } catch(e){ }
-    }
-    this.queue.push({text, onend});
-    this._maybeSpeak();
+  speak(text, interrupt=false) {
+    if(!text) return;
+    if(interrupt){ this.queue=[]; if (speechSynthesis.speaking) speechSynthesis.cancel(); }
+    this.queue.push(text); this._maybeSpeak();
   },
   _maybeSpeak() {
-    if (this.speaking) return;
+    if(this.speaking) return;
     const next = this.queue.shift();
-    if (!next) return;
+    if(!next) return;
     this.speaking = true;
-    const utt = new SpeechSynthesisUtterance(next.text);
+    const utt = new SpeechSynthesisUtterance(next); 
     utt.rate = 1.0;
-    utt.text = this._fixPronunciation(next.text);
-    utt.onend = () => {
-      this.speaking = false;
-      if (typeof next.onend === 'function') try { next.onend(); } catch(e){console.warn(e);}
-      setTimeout(()=>this._maybeSpeak(), 80);
-    };
+    // Handle pronunciation fixes
+    utt.text = this._fixPronunciation(next);
+    utt.onend = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
     utt.onerror = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
     speechSynthesis.speak(utt);
   },
   _fixPronunciation(text) {
+    // Fix pronunciation of node names like N001 -> "N zero zero one" instead of "and zero zero one"
     return text.replace(/\bN(\d+)\b/g, (match, digits) => {
       const spelled = digits.split('').join(' ');
       return `N ${spelled}`;
     });
   }
 };
-
-function announce(text, interrupt=false, onend=null) {
-  // when arrivalLock true, only allow interrupt=true items
-  if (arrivalLock && !interrupt) {
-    console.log("announce suppressed (arrivalLock):", text);
-    return;
-  }
+/* announce (user-facing) — updates UI and speaks */
+function announce(text, interrupt=false) {
   overlayText.textContent = text;
   srAnnounce.textContent = text;
-  TTS.speak(text, interrupt, onend);
+  TTS.speak(text, interrupt);
   log(`[ANNOUNCE] ${text}`);
 }
 
-/* Play arrival announcement that can't be overridden */
-function playArrivalMessage(text) {
-  // set lock, clear any other queued speech, and play arrival; when finished, clear lock
-  arrivalLock = true;
-  TTS.queue = [];
-  try { speechSynthesis.cancel(); } catch(e){}
-  TTS.speak(text, true, () => {
-    // ensure vibrations and final message persistence
-    setTimeout(()=>{ arrivalLock = false; }, 400); // small buffer after finish
-  });
-}
-
-/* ---------- Speech Recognition ---------- */
+/* Speech recognition */
 let SR_AVAILABLE = false;
-try { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (SR) SR_AVAILABLE = true; } catch(e){ SR_AVAILABLE=false; }
+try { const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (SpeechRecognition) SR_AVAILABLE = true; } catch(e){ SR_AVAILABLE=false; }
 
-function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInterim=null} = {}) {
-  return new Promise((resolve) => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { resolve(null); return; }
-    let recognition;
-    try { recognition = new SR(); } catch(e) { resolve(null); return; }
-    recognition.lang = lang;
-    recognition.interimResults = interim;
-    recognition.maxAlternatives = 3;
+/*  Color processing & QR detection */
 
-    let finalTranscript = '';
-    let resolved = false;
-
-    const timer = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        try { recognition.stop(); } catch(e){}
-        resolve(null);
-      }
-    }, timeout);
-
-    recognition.onresult = (evt) => {
-      const results = Array.from(evt.results);
-      const interimText = results.map(r => r[0].transcript).join(' ');
-      if (onInterim) onInterim(interimText);
-      for (const r of results) {
-        if (r.isFinal) finalTranscript = r[0].transcript;
-      }
-      if (finalTranscript && !resolved) {
-        resolved = true;
-        clearTimeout(timer);
-        try { recognition.stop(); } catch(e){}
-        resolve(finalTranscript.trim());
-      }
-    };
-
-    recognition.onend = () => {
-      if (resolved) return;
-      resolved = true;
-      clearTimeout(timer);
-      resolve(finalTranscript ? finalTranscript.trim() : null);
-    };
-
-    recognition.onerror = (e) => {
-      if (resolved) return;
-      resolved = true;
-      clearTimeout(timer);
-      try { recognition.stop(); } catch(err){}
-      resolve(null);
-    };
-
-    try { recognition.start(); } catch(e) { clearTimeout(timer); resolve(null); }
-  });
-}
-
-/* helper to wait for TTS to finish (avoid SR overlap with speech) */
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-async function waitForSpeechEnd(timeout = 3000) {
-  const start = performance.now();
-  while ((speechSynthesis.speaking || speechSynthesis.pending) && (performance.now() - start < timeout)) {
-    await sleep(80);
-  }
-  await sleep(120);
-  return !(speechSynthesis.speaking || speechSynthesis.pending);
-}
-
-/* ---------- Color / QR Detection helpers (unchanged) ---------- */
+/* createColorMask: produce an ImageData mask highlighting pixels of a specific color */
 function createColorMask(imageData, color) {
-  const data = imageData.data; const w = imageData.width, h = imageData.height;
+  const data = imageData.data;
+  const w = imageData.width, h = imageData.height;
   const out = new Uint8ClampedArray(data.length);
+  let colorPixels = 0;
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i+1], b = data[i+2];
     let hit = false;
@@ -368,41 +274,58 @@ function createColorMask(imageData, color) {
     } else if (color === 'blue') {
       hit = (b > r + 20 && b > g + 20 && b > 70) || (b > 110 && b > r * 1.05 && b > g * 1.05);
     }
-    if (hit) { out[i]=out[i+1]=out[i+2]=255; out[i+3]=255; } else { out[i]=out[i+1]=out[i+2]=0; out[i+3]=255; }
+    if (hit) {
+      out[i] = 255; out[i+1] = 255; out[i+2] = 255; out[i+3] = 255;
+      colorPixels++;
+    } else {
+      out[i] = 0; out[i+1] = 0; out[i+2] = 0; out[i+3] = 255;
+    }
   }
   return new ImageData(out, w, h);
 }
+
+/* extractColorChannel: boost the chosen channel and return a grayscale-like ImageData */
 function extractColorChannel(imageData, channel) {
-  const data = imageData.data; const out = new Uint8ClampedArray(data.length);
+  const data = imageData.data;
+  const out = new Uint8ClampedArray(data.length);
   for (let i=0;i<data.length;i+=4){
-    const r=data[i], g=data[i+1], b=data[i+2];
+    const r = data[i], g = data[i+1], b = data[i+2];
     let intensity = 0;
-    if (channel==='red') intensity=r;
-    else if (channel==='green') intensity=g;
-    else intensity=Math.max(b, Math.floor((b*1.6 + Math.max(r,g)*0.2)));
-    intensity=Math.min(255, Math.max(0,intensity));
-    out[i]=out[i+1]=out[i+2]=intensity; out[i+3]=255;
+    if (channel === 'red') intensity = r;
+    else if (channel === 'green') intensity = g;
+    else intensity = Math.max(b, Math.floor((b*1.6 + Math.max(r,g)*0.2)));
+    intensity = Math.min(255, Math.max(0, intensity));
+    out[i] = out[i+1] = out[i+2] = intensity;
+    out[i+3] = 255;
   }
   return new ImageData(out, imageData.width, imageData.height);
 }
+
+/* enhanceBlueContrast: specific tweaks to help blue QR under low contrast */
 function enhanceBlueContrast(imageData) {
-  const data = imageData.data; const out = new Uint8ClampedArray(data.length);
+  const data = imageData.data;
+  const out = new Uint8ClampedArray(data.length);
   for (let i=0;i<data.length;i+=4){
-    const r=data[i], g=data[i+1], b=data[i+2];
+    const r = data[i], g = data[i+1], b = data[i+2];
     let intensity = b;
-    if (b > r && b > g) intensity = Math.min(255, Math.round(b*1.8));
-    else if (b>70) intensity = Math.min(255, Math.round(b*1.3));
+    if (b > r && b > g) intensity = Math.min(255, Math.round(b * 1.8));
+    else if (b > 70) intensity = Math.min(255, Math.round(b * 1.3));
     else intensity = Math.round((r+g+b)/3 * 0.55);
     out[i]=out[i+1]=out[i+2]=intensity; out[i+3]=255;
   }
   return new ImageData(out, imageData.width, imageData.height);
 }
+
+/* detectWithOpenCV: convert to HSV and mask (returns ImageData or null on error) */
 function detectWithOpenCV(imageData, color) {
   if (!cvReady) return null;
   try {
     const src = cv.matFromImageData(imageData);
-    const rgb = new cv.Mat(); cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
-    const hsv = new cv.Mat(); cv.cvtColor(rgb, hsv, cv.COLOR_RGB2HSV);
+    const rgb = new cv.Mat();
+    cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+    const hsv = new cv.Mat();
+    cv.cvtColor(rgb, hsv, cv.COLOR_RGB2HSV);
+
     const mask = new cv.Mat();
     if (color === 'red') {
       const lower1 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 80, 40, 0]);
@@ -417,28 +340,37 @@ function detectWithOpenCV(imageData, color) {
     } else if (color === 'green') {
       const low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [35, 60, 40, 0]);
       const high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [85, 255, 255, 255]);
-      cv.inRange(hsv, low, high, mask); low.delete(); high.delete();
-    } else {
+      cv.inRange(hsv, low, high, mask);
+      low.delete(); high.delete();
+    } else { // blue
       const low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [90, 40, 30, 0]);
       const high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [140, 255, 255, 255]);
-      cv.inRange(hsv, low, high, mask); low.delete(); high.delete();
+      cv.inRange(hsv, low, high, mask);
+      low.delete(); high.delete();
     }
+
     const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3,3));
     cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
     cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, kernel);
-    const rgba = new cv.Mat(); cv.cvtColor(mask, rgba, cv.COLOR_GRAY2RGBA);
+    const rgba = new cv.Mat();
+    cv.cvtColor(mask, rgba, cv.COLOR_GRAY2RGBA);
+
     const out = new ImageData(new Uint8ClampedArray(rgba.data), rgba.cols, rgba.rows);
+
     src.delete(); rgb.delete(); hsv.delete(); mask.delete(); kernel.delete(); rgba.delete();
     return out;
   } catch (e) {
-    console.warn("OpenCV detect failed:", e); return null;
+    console.warn("OpenCV detect failed:", e);
+    return null;
   }
 }
 
+/* detect_colored_qr_in_frame_js: main detection strategy combining methods */
 function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
   const COLORS = ['red','green','blue'];
   for (const color of COLORS) {
     if (targetColor && color !== targetColor) continue;
+    // 1) Try enhanced channel (fast)
     try {
       const chImg = extractColorChannel(imageData, color);
       const code = jsQR(chImg.data, chImg.width, chImg.height, { inversionAttempts: 'attemptBoth' });
@@ -453,6 +385,7 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
       }
     } catch(e){ console.warn('Enhanced channel decode error', color, e); }
 
+    // 2) For blue: try color mask approach (helps when QR is on colored background)
     if (color === 'blue') {
       try {
         const maskImg = createColorMask(imageData, color);
@@ -469,6 +402,7 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
       } catch(e){ console.warn('Color mask decode error', color, e); }
     }
 
+    // 3) If OpenCV available, try HSV masking then decode
     if (cvReady) {
       try {
         const cvProcessed = detectWithOpenCV(imageData, color);
@@ -487,6 +421,7 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
       } catch(e){ console.warn('OpenCV approach failed for', color, e); }
     }
 
+    // 4) For blue try the special contrast enhancer
     if (color === 'blue') {
       try {
         const enhanced = enhanceBlueContrast(imageData);
@@ -506,7 +441,8 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
   return { found: false };
 }
 
-/* ---------- Progress UI ---------- */
+/* 
+Progress UI update*/ 
 function updateProgressDisplay() {
   const colors = ['red','green','blue'];
   colors.forEach(color => {
@@ -520,10 +456,11 @@ function updateProgressDisplay() {
     }
   });
   const foundCount = foundResults.size;
-  if (foundCount > 0 && !arrivalLock) announce(`${foundCount} of 3 QR codes found.`, false);
+  // announce lightly - do not spam repeated messages
+  if (foundCount > 0) announce(`${foundCount} of 3 QR codes found.`, false);
 }
 
-/* ---------- Vibration ---------- */
+/*  Vibration helpers */
 let lastVibrateAt = 0;
 function vibrateProximityFromRatio(ratio) {
   if (!('vibrate' in navigator)) return;
@@ -551,12 +488,14 @@ function vibrateArrival() {
   try { navigator.vibrate([80,40,80,40,120]); } catch(e){}
 }
 
-/* ---------- Camera start/stop ---------- */
+/*  Camera start/stop & loop */
 async function startCamera() {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
+    });
     const video = document.createElement('video');
-    video.autoplay=true; video.playsInline=true; video.muted=true;
+    video.autoplay = true; video.playsInline = true; video.muted = true;
     video.srcObject = stream;
     await video.play();
 
@@ -565,13 +504,16 @@ async function startCamera() {
     previewCanvas.width = Math.min(1280, canvasDisp.width);
     previewCanvas.height = Math.min(720, canvasDisp.height);
 
+    // centre scan box
     scanBox.size = Math.min(SCAN_SIZE, Math.floor(Math.min(canvasDisp.width, canvasDisp.height) * 0.5));
     scanBox.x = Math.floor((canvasDisp.width - scanBox.size)/2);
     scanBox.y = Math.floor((canvasDisp.height - scanBox.size)/2);
 
     scanStartTime = Date.now();
+    foundResults.clear();
+    actionsTriggered = false;
     scannerRunning = true;
-    announce("Camera started. Scanning for QR codes.", true);
+    announce("Camera started. Scanning for QR codes. Point the phone at the QR.", true);
     updateProgressDisplay();
     processFrame(video);
     startBtn.setAttribute('aria-pressed','true');
@@ -587,13 +529,12 @@ function stopCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
   scannerRunning = false;
+  announce("Scanner stopped.", true);
   startBtn.setAttribute('aria-pressed','false');
   log("Camera stopped.");
-  // do not announce "Scanner stopped" when used as part of arrival to avoid override — use announce except during arrivalLock
-  if (!arrivalLock) announce("Scanner stopped.", true);
 }
 
-/* ---------- Load COCO ---------- */
+/*Load coco model*/
 async function loadCocoModel() {
   try {
     backendLog("Loading coco-ssd...");
@@ -607,16 +548,20 @@ async function loadCocoModel() {
 }
 loadCocoModel();
 
-/* ---------- Preview drawing ---------- */
+/*  Draw helper for preview and overlays*/
 function drawPreviewFrame(tmpCanvas) {
   try {
     previewCtx.clearRect(0,0,previewCanvas.width, previewCanvas.height);
     previewCtx.drawImage(tmpCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
+
+    // overlay scan box (scaled)
     const sx = previewCanvas.width / tmpCanvas.width;
     const sy = previewCanvas.height / tmpCanvas.height;
     previewCtx.strokeStyle = 'rgba(0,255,128,0.9)';
     previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
     previewCtx.strokeRect(Math.round(scanBox.x*sx), Math.round(scanBox.y*sy), Math.round(scanBox.size*sx), Math.round(scanBox.size*sy));
+
+    // overlay object detections
     if (latestDetections && latestDetections.length && enableDetectCheckbox.checked) {
       previewCtx.save();
       previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
@@ -640,7 +585,7 @@ function drawPreviewFrame(tmpCanvas) {
   } catch(e) { console.warn("drawPreviewFrame error", e); }
 }
 
-/* ---------- Processing loop ---------- */
+/*  Processing loop  */
 let qrDecoderBusy = false, frameSkipCounter = 0;
 async function processFrame(video) {
   if (!scannerRunning) return;
@@ -650,22 +595,33 @@ async function processFrame(video) {
   frameSkipCounter++;
   if (frameSkipCounter % 2 !== 0 && foundResults.size < 3) return;
 
+  // Ensure canvas sizes
   canvasDisp.width = video.videoWidth || canvasDisp.width;
   canvasDisp.height = video.videoHeight || canvasDisp.height;
+
+  // Draw frame into processing canvas
   ctxDisp.drawImage(video, 0, 0, canvasDisp.width, canvasDisp.height);
 
+  // Create temporary preview canvas
   const tmp = document.createElement('canvas');
-  tmp.width = canvasDisp.width; tmp.height = canvasDisp.height;
+  tmp.width = canvasDisp.width; 
+  tmp.height = canvasDisp.height;
   const tmpCtx = tmp.getContext('2d');
   tmpCtx.drawImage(canvasDisp, 0, 0);
-  tmpCtx.strokeStyle = '#00ff88'; tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
+  
+  // Draw scan box for sighted helper
+  tmpCtx.strokeStyle = '#00ff88'; 
+  tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
   tmpCtx.strokeRect(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
 
+  // Draw object detection boxes if available
   if (latestDetections && latestDetections.length > 0 && enableDetectCheckbox.checked) {
     tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
     for (const d of latestDetections) {
-      tmpCtx.strokeStyle = 'rgba(255,80,80,0.9)'; tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
-      const [x,y,w,h] = d.bbox; tmpCtx.strokeRect(x, y, w, h);
+      tmpCtx.strokeStyle = 'rgba(255,80,80,0.9)';
+      tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
+      const [x,y,w,h] = d.bbox;
+      tmpCtx.strokeRect(x, y, w, h);
       const label = `${d.class} ${(d.score*100).toFixed(0)}%`;
       const labelW = tmpCtx.measureText(label).width + 10;
       tmpCtx.fillRect(x, Math.max(y-22,0), labelW, 20);
@@ -675,45 +631,64 @@ async function processFrame(video) {
     }
   }
 
+  // Draw to visible preview
   drawPreviewFrame(tmp);
 
   if (qrDecoderBusy) return;
   qrDecoderBusy = true;
+
   setTimeout(async () => {
     try {
+      // Read scan area image data
       const imageData = ctxDisp.getImageData(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
       const targetFilter = (colorFilterEl.value === "Any") ? null : colorFilterEl.value.toLowerCase();
       const colorOrder = targetFilter ? [targetFilter] : ['blue','red','green'];
-
+      
       for (const color of colorOrder) {
         if (foundResults.has(color)) continue;
+        
         const detection = detect_colored_qr_in_frame_js(imageData, color);
         if (detection.found && detection.decoded) {
           const decodedClean = detection.decoded.trim();
-          // If finalDestination exists already, subsequent scans are just checkpoints -> do not reset finalDestination
-          foundResults.set(color, { decoded: decodedClean, method: detection.method || 'unknown', boxArea: detection.boxArea || null });
+          foundResults.set(color, { 
+            decoded: decodedClean, 
+            method: detection.method || 'unknown', 
+            boxArea: detection.boxArea || null 
+          });
+          
           announce(`${color} QR found: ${decodedClean}`, true);
           updateProgressDisplay();
+          
           if (detection.boxArea) {
-            const scanArea = scanBox.size * scanBox.size; const ratio = detection.boxArea / scanArea;
+            const scanArea = scanBox.size * scanBox.size;
+            const ratio = detection.boxArea / scanArea;
             vibrateProximityFromRatio(ratio);
             if (ratio >= 0.15) vibrateApproachPattern(ratio);
           }
+          
           handleDecoded(decodedClean, color);
           break;
         }
       }
 
-      // All three colors found triggers info flow (only once)
-      const requiredColors = ['red','green','blue'];
+      // CRITICAL: Check if ALL 3 colors are found before triggering
+      const requiredColors = ['red', 'green', 'blue'];
       const foundColors = Array.from(foundResults.keys());
-      const allColorsFound = requiredColors.every(c => foundColors.includes(c));
+      const allColorsFound = requiredColors.every(color => foundColors.includes(color));
+      
+      console.log('QR Status Check:');
+      console.log('Required colors:', requiredColors);
+      console.log('Found colors:', foundColors);
+      console.log('All colors found:', allColorsFound);
+      console.log('Actions triggered:', actionsTriggered);
+      
+      // Only trigger if ALL 3 colors found AND not already triggered
       if (!actionsTriggered && allColorsFound) {
-        actionsTriggered = true;
+        console.log('TRIGGERING ALL ACTIONS - All 3 QR codes detected!');
         triggerAllActionsOnce();
       }
 
-      /* Object detection - always run while camera running so navigation can get obstacle alerts */
+      // Object detection logic
       const now = performance.now();
       if (enableDetectCheckbox.checked && cocoReady && (now - lastDetectTime > DETECTION_INTERVAL_MS)) {
         lastDetectTime = now;
@@ -733,39 +708,48 @@ async function processFrame(video) {
             return { class: p.class, score: p.score, bbox: [x*scaleBack, y*scaleBack, w*scaleBack, h*scaleBack] };
           });
 
-          if (latestDetections.length) updateAlertsList(latestDetections.slice(0,4));
-          else updateAlertsList([]);
+          if (latestDetections.length) {
+            updateAlertsList(latestDetections.slice(0,4));
+          } else {
+            updateAlertsList([]);
+          }
 
-          // Obstacle evaluation
+          // Obstacle detection logic
           let candidate = null;
-          const fh = canvasDisp.height, fw = canvasDisp.width;
+          const fh = canvasDisp.height;
+          const fw = canvasDisp.width;
           for (const det of latestDetections) {
             if (!HARMFUL_CLASSES.has(det.class)) continue;
-            const [x,y,w,h] = det.bbox; const cx = x + w/2;
+            const [x,y,w,h] = det.bbox;
+            const cx = x + w/2;
             const centerDelta = Math.abs(cx - fw/2) / fw;
             const score = (h / fh) * (1.0 - Math.min(centerDelta / 0.5, 1.0));
             if (!candidate || score > candidate.score) candidate = {det, score};
           }
           if (candidate) {
-            const det = candidate.det; const [x,y,w,h] = det.bbox; const cx = x + w/2;
+            const det = candidate.det;
+            const [x,y,w,h] = det.bbox;
+            const cx = x + w/2;
             const centerDelta = Math.abs(cx - fw/2) / fw;
             const isAhead = (centerDelta <= CENTER_TOLERANCE) && (h / fh >= 0.06);
             if (isAhead) {
-              const cls = det.class; const nowTs = Date.now();
+              const cls = det.class;
+              const nowTs = Date.now();
               if (!lastAlertAt[cls] || (nowTs - lastAlertAt[cls] > alertCooldown)) {
                 const ratio = (h / fh);
                 let distMeters = (DISTANCE_ESTIMATE_SCALE / Math.max(ratio, 0.02));
                 distMeters = Math.min(Math.max(distMeters, 0.2), 50.0);
                 if (distMeters <= 5.0) {
-                  // announce obstacle only if arrivalLock not active (arrivalLock blocks overrides by design)
-                  if (!arrivalLock) announce(`Obstacle ahead: ${cls}, about ${distMeters.toFixed(1)} meters.`, false);
+                  announce(`Obstacle ahead: ${cls}, approximately ${distMeters.toFixed(1)} meters.`, false);
                   lastAlertAt[cls] = nowTs;
                   log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`);
                 }
               }
             }
           }
-        } catch(e) { console.warn("Object detection error", e); }
+        } catch(e) {
+          console.warn("Object detection error", e);
+        }
       }
 
     } catch(e) {
@@ -776,144 +760,178 @@ async function processFrame(video) {
   }, 36);
 }
 
-/* ---------- Alerts list ---------- */
+/* Alerts list UI */
 function updateAlertsList(dets) {
   alertsList.innerHTML = '';
   for (const d of dets) {
-    const li = document.createElement('li'); li.textContent = `${d.class} ${(d.score*100).toFixed(0)}%`; alertsList.appendChild(li);
+    const li = document.createElement('li');
+    li.textContent = `${d.class} ${(d.score*100).toFixed(0)}%`;
+    alertsList.appendChild(li);
   }
-  if (dets.length === 0) { const li = document.createElement('li'); li.textContent = 'No recent alerts'; alertsList.appendChild(li); }
+  if (dets.length === 0) {
+    const li = document.createElement('li'); li.textContent = 'No recent alerts'; alertsList.appendChild(li);
+  }
 }
 
-/* ---------- Handle decoded QR logic ---------- */
-/* UPDATED: when first location QR is seen -> stop camera and ask user for destination.
-   During navigation, arrival is confirmed by scanning the destination QR, camera stops and non-overridable arrival TTS plays.
-*/
+/*Simple arrival/decoded handling */
 function handleDecoded(decoded, color) {
   const decodedClean = decoded.trim();
-
-  // Arrival confirmation during navigation (destination QR scanned)
-  if (navigationActive && finalDestination && currentNavigationTarget) {
+  if (currentNavigationTarget) {
     const target = (currentNavigationTarget || "").toLowerCase();
     const detected = decodedClean.toLowerCase();
     if (detected === target || detected.includes(target) || target.includes(detected)) {
       log("Arrival confirmed: " + decodedClean);
-      // stop camera and play non-overridable arrival message
+      announce(`You have arrived at ${decodedClean}.`, true);
+      currentLocation = decodedClean; currentNavigationTarget = null;
       stopCamera();
       vibrateArrival();
-      playArrivalMessage(`You have arrived at ${decodedClean}.`);
-      currentLocation = decodedClean;
-      navigationActive = false;
-      currentNavigationTarget = null;
-      // after arrival message completes, give a final confirmation (non-critical)
-      setTimeout(()=>{ announce(`Navigation completed. You are now at ${decodedClean}.`, true); }, 1800);
+      setTimeout(()=>{ alert(`Arrival confirmed: ${decodedClean}`); }, 800);
       return;
     } else {
-      // It's a different QR encountered en route (checkpoint)
       if (decodedClean !== currentLocation) {
         currentLocation = decodedClean;
-        log("Navigation checkpoint: " + decodedClean);
-        announce(`Passed ${decodedClean}. Continuing to ${finalDestination}.`, false);
+        log("Passed checkpoint: " + decodedClean);
+        announce(`Passed ${decodedClean}`, false);
       }
       return;
     }
   }
-
-  // FIRST-TIME LOCATION SCAN: stop the camera and ask for destination
-  if (!isFirstLocationSet) {
-    if (decodedClean !== currentLocation) {
-      currentLocation = decodedClean;
-      isFirstLocationSet = true;
-      log("Initial location set: " + decodedClean);
-      // announce location (non-blocking)
-      announce(`Current location detected: ${decodedClean}`, false);
-      // Immediately stop the camera so we can start voice recognition without continuous scanning noise/overlap
-      stopCamera();
-
-      // Wait a short time so TTS settles, then ask for destination (voice-first)
-      setTimeout(async () => {
-        if (SR_AVAILABLE) {
-          announce("I will listen for your final destination now.", true);
-          // Ensure any short TTS finishes so SR doesn't get speech interference
-          await waitForSpeechEnd(1600);
-          ask_destination_via_voice();
-        } else {
-          show_destination_modal();
-        }
-      }, 700);
-    }
-    return;
-  }
-
-  // Subsequent scans update currentLocation (checkpoints)
   if (decodedClean !== currentLocation) {
     currentLocation = decodedClean;
-    log("Location updated: " + decodedClean);
-    announce(`Location updated: ${decodedClean}`, false);
+    log("Current location updated: " + decodedClean);
+    announce(`Current location: ${decodedClean}`, false);
+    setTimeout(()=>{ announce("When ready, speak your destination. The app will listen automatically.", false); }, 900);
   }
 }
 
-/* ---------- Trigger flow once all three scanned (kept but not required for basic flow) ---------- */
+
 function triggerAllActionsOnce() {
-  if (actionsTriggered) return;
-  const requiredColors = ['red','green','blue'];
+  if (actionsTriggered) {
+    console.log('Actions already triggered, skipping');
+    return;
+  }
+  
+  // Double-check that we have all required colors
+  const requiredColors = ['red', 'green', 'blue'];
   const foundColors = Array.from(foundResults.keys());
   const allColorsFound = requiredColors.every(color => foundColors.includes(color));
-  if (!allColorsFound) return;
+  
+  if (!allColorsFound) {
+    console.log('Not all colors found yet:', foundColors);
+    return;
+  }
+  
   actionsTriggered = true;
-
+  
   log("ALL THREE COLOR QR CODES DETECTED - TRIGGERING ACTIONS");
-  announce("All three QR codes found. Loading information.", true);
-
+  announce("All three QR codes detected. Processing information now.", true);
+  
   const greenQR = foundResults.get('green')?.decoded || '';
   const blueQR = foundResults.get('blue')?.decoded || '';
   const redQR = foundResults.get('red')?.decoded || '';
-
-  log('QR Code Results: red=' + redQR + ' green=' + greenQR + ' blue=' + blueQR);
-
-  // Set current location from red QR
+  
+  console.log('QR Code Results:');
+  console.log('Red QR (Location):', redQR);
+  console.log('Green QR (Map):', greenQR);
+  console.log('Blue QR (Accessibility):', blueQR);
+  
+  // Set current location immediately
   currentLocation = redQR;
-  isFirstLocationSet = true;
-
-  // Keep camera running so we can continue detecting obstacles etc during navigation
-  // Provide map and accessibility info (non-blocking)
-  setTimeout(()=>{ announce("Map information is available.", false); drawMap(); mapModal.style.display = 'flex'; }, 700);
-  setTimeout(()=>{ announce("Accessibility notes available.", false); }, 1500);
-  setTimeout(()=>{ announce(`Your current location is ${redQR}.`, false); }, 2500);
-
-  // ask destination only if not already set - ensure we wait for TTS finish before starting SR
-  setTimeout(async () => {
-    if (!finalDestination) {
-      if (SR_AVAILABLE) {
-        announce("I will listen for your final destination now.", true);
-        await waitForSpeechEnd(2200);
-        ask_destination_via_voice();
-      } else {
-        show_destination_modal();
-      }
-    } else {
-      // if destination already set (unlikely), start navigation immediately
-      announce(`Starting navigation to ${finalDestination}`, true);
-      start_navigation(finalDestination);
-    }
-  }, 3300);
+  
+  stopCamera();
+  
+  // Sequence the announcements with proper timing
+  setTimeout(() => { 
+    log("Map info: " + greenQR); 
+    announce("Map information available.", false); 
+    drawMap(); 
+    mapModal.style.display = 'flex'; 
+  }, 700);
+  
+  setTimeout(() => { 
+    log("Accessibility: " + blueQR); 
+    announce("Accessibility information: " + blueQR, false); 
+  }, 1500);
+  
+  setTimeout(() => { 
+    log("Current location confirmed: " + redQR); 
+    announce("Your current location is " + redQR, false); 
+  }, 2500);
+  
+  setTimeout(() => { 
+    if (SR_AVAILABLE) { 
+      announce("I will listen for your destination now.", true); 
+      ask_destination_via_voice(); 
+    } else { 
+      show_destination_modal(); 
+    } 
+  }, 3600);
 }
 
-/* ---------- Map / Graph / Routing ---------- */
+// Enhanced progress display with better validation
+function updateProgressDisplay() {
+  const colors = ['red', 'green', 'blue'];
+  let foundCount = 0;
+  
+  colors.forEach(color => {
+    const el = color === 'red' ? progressRed : color === 'green' ? progressGreen : progressBlue;
+    if (foundResults.has(color)) {
+      foundCount++;
+      el.classList.add('found');
+      el.textContent = `${color.toUpperCase()} QR: ${foundResults.get(color).decoded}`;
+    } else {
+      el.classList.remove('found');
+      el.textContent = `${color.charAt(0).toUpperCase() + color.slice(1)} QR: Scanning...`;
+    }
+  });
+  
+  // Only announce progress, don't spam
+  if (foundCount > 0) {
+    const remaining = 3 - foundCount;
+    if (foundCount < 3) {
+      announce(`${foundCount} of 3 QR codes found. ${remaining} remaining.`, false);
+    }
+  }
+  
+  console.log(`Progress: ${foundCount}/3 QR codes found`);
+}
+
+
 const node_coords = {
-  "Female Toilet (NGT1)": [2009, 1357],"Male Toilet (NGT2)": [1955, 1357],"N001 (backdoor)": [2100, 1135],
-  "N001": [1907, 1121],"N002": [1651, 1097],"N003": [1387, 1074],"N004": [892, 1097],"N005": [638, 1115],
-  "N006": [383, 1139],"N007": [127, 1158],"N008": [4, 1330],"Female Toilet (NGT5)": [357, 1350],
-  "Male Toilet (NGT4)": [403, 1351],"N009": [492, 1330],"N010": [822, 1335],"N011": [1251, 1340],"N012": [1597, 1340],
+  "Female Toilet (NGT1)": [2009, 1357],
+  "Male Toilet (NGT2)": [1955, 1357],
+  "N001 (backdoor)": [2100, 1135],
+  "N001": [1907, 1121],
+  "N002": [1651, 1097],
+  "N003": [1387, 1074],
+  "N004": [892, 1097],
+  "N005": [638, 1115],
+  "N006": [383, 1139],
+  "N007": [127, 1158],
+  "N008": [4, 1330],
+  "Female Toilet (NGT5)": [357, 1350],
+  "Male Toilet (NGT4)": [403, 1351],
+  "N009": [492, 1330],
+  "N010": [822, 1335],
+  "N011": [1251, 1340],
+  "N012": [1597, 1340],
 };
 const graph_raw = {
   "Female Toilet (NGT1)": {"Male Toilet (NGT2)": 1.89},
   "N001": {"Female Toilet (NGT1)": 9.00, "N001 (backdoor)": 6.77, "N002": 9.00},
-  "N002": {"N003": 9.28},"N003": {"N004": 17.35},"N004": {"N005": 8.91},
-  "N005": {"N006": 8.97},"N006": {"Male Toilet (NGT4)": 7.45, "Female Toilet (NGT5)": 7.44, "N007": 8.99},
-  "N007": {"N008": 7.40},"N008": {"Female Toilet (NGT5)": 12.38},"Female Toilet (NGT5)": {"Male Toilet (NGT4)": 1.61},
-  "Male Toilet (NGT4)": {"N009": 3.20},"N009": {"N010": 11.55},"N010": {"N011": 15.02},
-  "N011": {"N012": 12.11},"N012": {"Male Toilet (NGT2)": 12.55}
+  "N002": {"N003": 9.28},
+  "N003": {"N004": 17.35},
+  "N004": {"N005": 8.91},
+  "N005": {"N006": 8.97},
+  "N006": {"Male Toilet (NGT4)": 7.45, "Female Toilet (NGT5)": 7.44, "N007": 8.99},
+  "N007": {"N008": 7.40},
+  "N008": {"Female Toilet (NGT5)": 12.38},
+  "Female Toilet (NGT5)": {"Male Toilet (NGT4)": 1.61},
+  "Male Toilet (NGT4)": {"N009": 3.20},
+  "N009": {"N010": 11.55},
+  "N010": {"N011": 15.02},
+  "N011": {"N012": 12.11},
+  "N012": {"Male Toilet (NGT2)": 12.55}
 };
 function add_bidirectional_edges(graph_in) {
   const new_graph = {};
@@ -932,56 +950,126 @@ const graph = add_bidirectional_edges(graph_raw);
 
 function drawMap() {
   const ctx = mapCanvas.getContext('2d');
-  ctx.clearRect(0,0,mapCanvas.width,mapCanvas.height);
+  ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+  console.log("Drawing map. currentLocation =", currentLocation);
+  console.log("destinationNode =", typeof destinationNode !== "undefined" ? destinationNode : "undefined");
+
   const cw = mapCanvas.width, ch = mapCanvas.height, margin = 40;
-  const xs = Object.values(node_coords).map(p=>p[0]), ys = Object.values(node_coords).map(p=>p[1]);
-  const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+  const xs = Object.values(node_coords).map(p => p[0]);
+  const ys = Object.values(node_coords).map(p => p[1]);
+  const minx = Math.min(...xs), maxx = Math.max(...xs);
+  const miny = Math.min(...ys), maxy = Math.max(...ys);
+
   const project = (p) => {
-    const sx = (p[0]-minx)/(maxx-minx||1); const sy = (p[1]-miny)/(maxy-miny||1);
-    return [margin + Math.floor(sx*(cw-margin*2)), margin + Math.floor(sy*(ch-margin*2))];
+    const sx = (p[0] - minx) / (maxx - minx || 1);
+    const sy = (p[1] - miny) / (maxy - miny || 1);
+    return [
+      margin + Math.floor(sx * (cw - margin * 2)),
+      margin + Math.floor(sy * (ch - margin * 2))
+    ];
   };
 
-  ctx.strokeStyle="#bbb"; ctx.lineWidth=1;
-  for (const a in graph) for (const b in graph[a]) {
-    if (node_coords[a] && node_coords[b]) { const pa=project(node_coords[a]), pb=project(node_coords[b]);
-      ctx.beginPath(); ctx.moveTo(pa[0],pa[1]); ctx.lineTo(pb[0],pb[1]); ctx.stroke();
+  // Draw edges
+  ctx.strokeStyle = "#bbb";
+  ctx.lineWidth = 1;
+  for (const a in graph) {
+    for (const b in graph[a]) {
+      if (node_coords[a] && node_coords[b]) {
+        const pa = project(node_coords[a]);
+        const pb = project(node_coords[b]);
+        ctx.beginPath();
+        ctx.moveTo(pa[0], pa[1]);
+        ctx.lineTo(pb[0], pb[1]);
+        ctx.stroke();
+      }
     }
   }
 
-  const labels=[]; ctx.font="12px Arial";
+  // Prepare labels
+  const labels = [];
+  ctx.font = "12px Arial";
   for (const name in node_coords) {
-    const p = project(node_coords[name]); const text = name; const padding = 6;
+    const p = project(node_coords[name]);
+    const text = name;
+    const padding = 6;
     const textW = Math.min(300, ctx.measureText(text).width);
-    let lx = p[0]+8, ly = p[1]-6; const labelH = 18;
-    if (lx + textW + padding*2 > cw - margin) lx = p[0] - textW - padding*2 - 8;
-    if (lx < margin) lx = margin; if (ly < margin) ly = margin;
-    labels.push({name,p,lx,ly,textW,labelH,padding});
+    let lx = p[0] + 8;
+    let ly = p[1] - 6;
+    const labelH = 18;
+
+    if (lx + textW + padding * 2 > cw - margin) lx = p[0] - textW - padding * 2 - 8;
+    if (lx < margin) lx = margin;
+    if (ly < margin) ly = margin;
+
+    labels.push({ name, p, lx, ly, textW, labelH, padding });
   }
 
-  for (let i=0;i<labels.length;i++){
+  // Prevent label overlaps
+  for (let i = 0; i < labels.length; i++) {
     const a = labels[i];
-    for (let j=0;j<i;j++){
+    for (let j = 0; j < i; j++) {
       const b = labels[j];
-      const aLeft=a.lx,aRight=a.lx+a.textW+a.padding*2, aTop=a.ly,aBottom=a.ly+a.labelH+a.padding;
-      const bLeft=b.lx,bRight=b.lx+b.textW+b.padding*2,bTop=b.ly,bBottom=b.ly+b.labelH+b.padding;
-      const overlapX = !(aRight < bLeft || aLeft > bRight); const overlapY = !(aBottom < bTop || aTop > bBottom);
-      if (overlapX && overlapY) a.ly = bBottom + 4;
+      const aLeft = a.lx, aRight = a.lx + a.textW + a.padding * 2;
+      const aTop = a.ly, aBottom = a.ly + a.labelH + a.padding;
+      const bLeft = b.lx, bRight = b.lx + b.textW + b.padding * 2;
+      const bTop = b.ly, bBottom = b.ly + b.labelH + b.padding;
+      const overlapX = !(aRight < bLeft || aLeft > bRight);
+      const overlapY = !(aBottom < bTop || aTop > bBottom);
+      if (overlapX && overlapY) {
+        a.ly = bBottom + 4;
+      }
     }
   }
 
+  // Draw nodes and labels with proper highlighting
   for (const lbl of labels) {
     const p = lbl.p;
+
+    console.log(`Checking node ${lbl.name}: currentLocation=${currentLocation}, match=${lbl.name === currentLocation}`);
+
+    // Node highlighting logic
     if (currentLocation && lbl.name === currentLocation) {
-      ctx.fillStyle = "#ff4444"; ctx.beginPath(); ctx.arc(p[0], p[1], 10, 0, Math.PI*2); ctx.fill();
+      // Current location in red
+      console.log(`Highlighting ${lbl.name} as current location in RED`);
+      ctx.fillStyle = "#ff4444";
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 10, 0, Math.PI * 2);
+      ctx.fill();
     } else if (typeof destinationNode !== "undefined" && lbl.name === destinationNode) {
-      ctx.fillStyle = "#22bb33"; ctx.beginPath(); ctx.arc(p[0], p[1], 9, 0, Math.PI*2); ctx.fill();
-    } else { ctx.fillStyle="#333"; ctx.beginPath(); ctx.arc(p[0],p[1],5,0,Math.PI*2); ctx.fill(); }
-    const bx = lbl.lx, by = lbl.ly - 4, bw = lbl.textW + lbl.padding*2, bh = lbl.labelH + lbl.padding/1.5;
-    ctx.fillStyle='rgba(255,255,255,0.9)'; roundRect(ctx,bx,by,bw,bh,6,true,false);
-    ctx.fillStyle='#000'; ctx.fillText(lbl.name, bx + lbl.padding, by + bh / 1.35);
-    ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(bx+4, by + bh/2); ctx.stroke();
+      // Destination in green
+      console.log(`Highlighting ${lbl.name} as destination in GREEN`);
+      ctx.fillStyle = "#22bb33";
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 9, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Normal nodes
+      ctx.fillStyle = "#333";
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Label box + text
+    const bx = lbl.lx, by = lbl.ly - 4;
+    const bw = lbl.textW + lbl.padding * 2;
+    const bh = lbl.labelH + lbl.padding / 1.5;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    roundRect(ctx, bx, by, bw, bh, 6, true, false);
+    ctx.fillStyle = '#000';
+    ctx.fillText(lbl.name, bx + lbl.padding, by + bh / 1.35);
+
+    // Connection line
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(p[0], p[1]);
+    ctx.lineTo(bx + 4, by + bh / 2);
+    ctx.stroke();
   }
 }
+
 function roundRect(ctx, x, y, w, h, r, fill, stroke) {
   if (typeof r === 'undefined') r = 5;
   ctx.beginPath();
@@ -995,9 +1083,9 @@ function roundRect(ctx, x, y, w, h, r, fill, stroke) {
   if (stroke) ctx.stroke();
 }
 
-/* ---------- Destination selection (modal fallback) ---------- */
+
 function show_destination_modal() {
-  if (!currentLocation) { announce("No current location detected. Please scan first.", false); return; }
+  if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
   const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
   const candidateList = candidates.map((p,i)=>`${i+1}. ${p}`).join('\n');
   announce("Opening text selection. Check the screen for options.", false);
@@ -1005,153 +1093,326 @@ function show_destination_modal() {
   if (!dest) { announce("No destination selected.", false); return; }
   let destination = dest.trim();
   const destNumber = parseInt(destination);
-  if (!isNaN(destNumber) && destNumber >=1 && destNumber <= candidates.length) destination = candidates[destNumber-1];
-  else {
+  if (!isNaN(destNumber) && destNumber >=1 && destNumber <= candidates.length) {
+    destination = candidates[destNumber-1];
+  } else {
     const best = findBestLocationMatch(destination, candidates);
     if (best) destination = best;
     else { announce("Destination not found. Please try voice input.", false); setTimeout(()=>ask_destination_via_voice(), 600); return; }
   }
-  announce(`You selected ${destination}. Starting navigation.`, true);
-  finalDestination = destination; navigationActive = true; start_navigation(destination);
+  announce(`You selected ${destination}. Confirming.`, false);
+  if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
+  else { announce("Selection cancelled. Try again.", false); setTimeout(()=>show_destination_modal(), 500); }
 }
 
-/* ---------- Fuzzy match ---------- */
 function findBestLocationMatch(input, candidates) {
   if (!input || !candidates || candidates.length === 0) return null;
-  const normalize = s => (s||'').toLowerCase().replace(/[^a-z0-9\s()]/g,' ').replace(/\s+/g,' ').trim();
-  const q = normalize(input); if (!q) return null;
-  for (const c of candidates) if (normalize(c) === q) return c;
-  const nodePattern = /^n\s*(\d+)$/; const qMatch = q.match(nodePattern);
+
+  // Enhanced normalization that preserves node numbers (N001, N002, etc.)
+  const normalize = s => {
+    return (s || '').toLowerCase()
+      .replace(/[^a-z0-9\s()]/g, ' ')  // Replace punctuation with space
+      .replace(/\s+/g, ' ')           // Collapse multiple spaces
+      .trim();
+  };
+
+  const q = normalize(input);
+  if (!q) return null;
+
+  // Full exact match first
+  for (const c of candidates) {
+    if (normalize(c) === q) return c;
+  }
+
+  // Special handling for node patterns (N followed by digits)
+  const nodePattern = /^n\s*(\d+)$/;
+  const qMatch = q.match(nodePattern);
   if (qMatch) {
     const digits = qMatch[1];
+    // Look for N + padded digits (N001, N002, etc.)
     for (const c of candidates) {
       const cNorm = normalize(c);
-      if (cNorm.includes(`n ${digits.padStart(3,'0')}`)) return c;
-      if (cNorm.includes(`n${digits.padStart(3,'0')}`)) return c;
+      if (cNorm.includes(`n ${digits.padStart(3, '0')}`)) return c;
+      if (cNorm.includes(`n${digits.padStart(3, '0')}`)) return c;
       if (cNorm.includes(`n ${digits}`)) return c;
     }
   }
+
   const qTokens = q.split(/\s+/).filter(Boolean);
-  let best=null, bestScore=0;
+  
+  // Token-based scoring with better handling for node names
+  let best = null;
+  let bestScore = 0;
+  
   for (const cand of candidates) {
-    const cNorm = normalize(cand); const cTokens = cNorm.split(/\s+/).filter(Boolean);
+    const cNorm = normalize(cand);
+    const cTokens = cNorm.split(/\s+/).filter(Boolean);
+
     let matched = 0;
     for (const qt of qTokens) {
-      if (cTokens.includes(qt)) { matched++; continue; }
-      if (/^\d+$/.test(qt)) {
-        const foundDigitMatch = cTokens.some(ct => { const paddedQt = qt.padStart(3,'0'); return ct.includes(paddedQt) || ct===qt; });
-        if (foundDigitMatch) { matched++; continue; }
+      // Exact token match
+      if (cTokens.includes(qt)) { 
+        matched++; 
+        continue; 
       }
+      
+      // Special handling for digits in node names
+      if (/^\d+$/.test(qt)) {
+        const foundDigitMatch = cTokens.some(ct => {
+          // Match padded version (001 matches "001" in N001)
+          const paddedQt = qt.padStart(3, '0');
+          return ct.includes(paddedQt) || ct === qt;
+        });
+        if (foundDigitMatch) {
+          matched++;
+          continue;
+        }
+      }
+      
+      // Prefix matching for other tokens
       const prefixHit = cTokens.some(ct => ct.startsWith(qt) && ct.length - qt.length <= 3);
-      if (prefixHit) { matched++; continue; }
+      if (prefixHit) { 
+        matched++; 
+        continue; 
+      }
     }
+
     const score = matched / qTokens.length;
-    if (score > bestScore || (score === bestScore && best && cNorm.length < normalize(best).length)) { best = cand; bestScore = score; }
+    if (score > bestScore || (score === bestScore && best && cNorm.length < normalize(best).length)) {
+      best = cand;
+      bestScore = score;
+    }
   }
+
   if (bestScore > 0) return best;
-  for (const cand of candidates) { const cNorm = normalize(cand); if (cNorm.includes(q)) return cand; }
+
+  // Fallback: substring matching
+  for (const cand of candidates) {
+    const cNorm = normalize(cand);
+    if (cNorm.includes(q)) return cand;
+  }
+
   return null;
 }
 
-/* ---------- Speech destination + confirmation ---------- */
-async function ask_destination_via_voice(){
-  if (!currentLocation) { announce("No current location. Scan first.", false); return; }
-  if (!SR_AVAILABLE) { announce("Speech recognition not available. Please use text input.", false); show_destination_modal(); return; }
+function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInterim=null} = {}) {
+  return new Promise((resolve) => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { resolve(null); return; }
+    let recognition;
+    try { recognition = new SR(); } catch(e) { resolve(null); return; }
+    recognition.lang = lang; 
+    recognition.interimResults = interim; 
+    recognition.maxAlternatives = 3;
+    
+    let finalTranscript = '';
+    let resolved = false;
+    
+    const timer = setTimeout(() => {
+      if (!resolved) { 
+        resolved = true; 
+        try { recognition.stop(); } catch(e){}; 
+        resolve(null); 
+      }
+    }, timeout);
+    
+    recognition.onresult = (evt) => {
+      const results = Array.from(evt.results);
+      const interimText = results.map(r => r[0].transcript).join(' ');
+      if (onInterim) onInterim(interimText);
+      
+      for (const r of results) { 
+        if (r.isFinal) {
+          finalTranscript = r[0].transcript;
+        }
+      }
+      
+      if (finalTranscript && !resolved) { 
+        resolved = true; 
+        clearTimeout(timer); 
+        try { recognition.stop(); } catch(e){}; 
+        resolve(finalTranscript.trim()); 
+      }
+    };
+    
+    recognition.onend = () => {
+      if (resolved) return;
+      resolved = true; 
+      clearTimeout(timer); 
+      resolve(finalTranscript ? finalTranscript.trim() : null);
+    };
+    
+    recognition.onerror = (e) => {
+      if (resolved) return;
+      resolved = true; 
+      clearTimeout(timer); 
+      try { recognition.stop(); } catch(err){}; 
+      resolve(null);
+    };
+    
+    try { recognition.start(); } catch(e) { clearTimeout(timer); resolve(null); }
+  });
+}
 
-  let tries = 0, maxTries = 4;
+// IMPROVED: Better confirmation interpretation
+function interpretConfirmation(text) {
+  if (!text) return 'unknown';
+  
+  const s = text.toLowerCase().trim();
+  
+  // Strong positive indicators
+  const strongYes = /^(yes|yeah|yep|yup|correct|right|affirmative|confirm|ok|okay)$/;
+  if (strongYes.test(s)) return 'yes';
+  
+  // Strong negative indicators  
+  const strongNo = /^(no|nope|nah|wrong|incorrect|cancel|stop)$/;
+  if (strongNo.test(s)) return 'no';
+  
+  // Weaker pattern matching for longer phrases
+  const hasYes = /\b(yes|yeah|yep|yup|correct|right|affirmative|confirm|ok|okay)\b/.test(s);
+  const hasNo = /\b(no|nope|nah|not|wrong|incorrect|cancel|stop)\b/.test(s);
+  
+  if (hasYes && !hasNo) return 'yes';
+  if (hasNo && !hasYes) return 'no';
+  if (hasYes && hasNo) return 'ambiguous';
+  
+  return 'unknown';
+}
+
+async function ask_destination_via_voice(){
+  if (!currentLocation) { 
+    announce("No current location. Scan first.", false); 
+    return; 
+  }
+  
+  if (!SR_AVAILABLE) { 
+    announce("Speech recognition not available. Please use text input.", false); 
+    show_destination_modal(); 
+    return; 
+  }
+  
+  let tries = 0;
+  const maxTries = 4;
+  
   while (tries < maxTries) {
     tries++;
-    announce("Please say your final destination after the beep.", true);
-    await waitForSpeechEnd(2200);
-
+    
+    announce("Please say your destination after the beep.", true);
+    await new Promise(r=>setTimeout(r, 700));
+    
+    // Show listening indicator
     const interimBox = document.getElementById('listeningBox');
-    interimBox.style.display = 'block'; interimBox.textContent = "Listening… (speak now)";
-    const transcript = await startSpeechRecognition({ lang:'en-US', interim:true, timeout:9000, onInterim:(t)=>{ interimBox.textContent = "Listening… " + t; } });
-
-    interimBox.textContent = ''; interimBox.style.display = 'none';
+    interimBox.style.display = 'block'; 
+    interimBox.textContent = "Listening… (speak now)";
+    
+    const transcript = await startSpeechRecognition({
+      lang:'en-US', 
+      interim:true, 
+      timeout:9000, 
+      onInterim:(t) => { 
+        interimBox.textContent = "Listening… " + t; 
+      }
+    });
+    
+    interimBox.textContent = '';
+    interimBox.style.display = 'none';
+    
     if (!transcript) {
       log("No transcript received");
       if (!userGesturePerformed && tries === 1) {
-        announce("If microphone access is blocked, press the voice button and allow microphone, then try again.", false);
+        announce("I could not access the microphone automatically. If you allow microphone access, press the Voice Destination button once. Then speak after the beep.", false);
         voiceDestBtn.classList.add('secondary');
-        await sleep(1200);
+        await new Promise(r=>setTimeout(r, 1500));
         continue;
       }
       announce("I didn't catch that. Let's try again.", false);
       continue;
     }
-
+    
     log("Recognized destination: " + transcript);
+    
     const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
     const bestMatch = findBestLocationMatch(transcript, candidates);
-    if (!bestMatch) { announce(`I couldn't find a location matching ${transcript}. Say it again.`, false); continue; }
+    
+    if (!bestMatch) { 
+      announce(`I couldn't find a location matching "${transcript}". Please say your destination again.`, false); 
+      continue; 
+    }
 
-    // Confirm
-    announce(`Did you mean ${bestMatch}? Say yes or no.`, true);
-    await waitForSpeechEnd(1600);
+    // IMPROVED: Better confirmation handling
+    announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
+    await new Promise(r=>setTimeout(r, 600));
 
-    let confirmAttempts = 0, maxConfirmAttempts = 3;
+    let confirmAttempts = 0;
+    const maxConfirmAttempts = 3;
+    
     while (confirmAttempts < maxConfirmAttempts) {
       confirmAttempts++;
-      interimBox.style.display = 'block'; interimBox.textContent = "Listening for yes or no...";
-      const confirmation = await startSpeechRecognition({ lang:'en-US', interim:false, timeout:6000 });
-      interimBox.textContent = ''; interimBox.style.display = 'none';
+      
+      interimBox.style.display = 'block';
+      interimBox.textContent = "Listening for yes or no...";
+      
+      const confirmation = await startSpeechRecognition({
+        lang:'en-US', 
+        interim:false, 
+        timeout:6000
+      });
+      
+      interimBox.textContent = '';
+      interimBox.style.display = 'none';
+      
       if (!confirmation) {
-        if (confirmAttempts >= maxConfirmAttempts) {
-          // fallback: assume yes (to keep flow moving)
-          finalDestination = bestMatch; navigationActive = true;
-          announce(`Setting destination to ${bestMatch} and starting navigation.`, true);
-          start_navigation(bestMatch);
-          return;
+        // Fallback to visual confirmation
+        const visualConfirm = confirm(`Did you mean ${bestMatch}?\n\nPress OK for YES, Cancel for NO.`);
+        if (visualConfirm) { 
+          start_navigation(bestMatch); 
+          return; 
+        } else { 
+          announce("Okay, let's try again.", false); 
+          break; // Try destination again
         }
-        announce("I didn't hear you. Please say yes or no.", false);
-        continue;
       }
+      
       const verdict = interpretConfirmation(confirmation);
       log("Confirmation verdict: " + verdict + " (from: '" + confirmation + "')");
+      
       if (verdict === 'yes') {
-        finalDestination = bestMatch; navigationActive = true;
-        announce(`Starting navigation to ${bestMatch}`, true);
-        start_navigation(bestMatch); return;
+        start_navigation(bestMatch); 
+        return;
       } else if (verdict === 'no') {
-        announce("Okay, say your destination again.", false); break; // break confirmation loop -> ask destination again
+        announce("Okay, please say your destination again.", false);
+        break; // Go back to destination input
       } else if (verdict === 'ambiguous') {
-        announce("I heard both yes and no. Please say clearly yes or no.", false); await waitForSpeechEnd(1200); continue;
+        announce("I heard both yes and no. Please say clearly: yes or no.", false);
+        continue; // Try confirmation again
       } else {
-        announce("I didn't understand. Please say yes or no.", false); await waitForSpeechEnd(1200); continue;
+        announce("I didn't understand. Please say yes or no clearly.", false);
+        continue; // Try confirmation again
       }
     }
-    if (confirmAttempts >= maxConfirmAttempts) announce("Let's try the destination again.", false);
+    
+    // If we exit the confirmation loop without success, continue to next destination attempt
+    if (confirmAttempts >= maxConfirmAttempts) {
+      announce("Having trouble with confirmation. Let's try the destination again.", false);
+    }
   }
-
-  announce("Voice input failed. Use the screen to pick a destination.", false);
+  
+  // If all attempts failed
+  announce("Voice input failed repeatedly. Please use text input instead.", false);
   show_destination_modal();
 }
 
-/* simple confirmation interpreter */
-function interpretConfirmation(text) {
-  if (!text) return 'unknown';
-  const s = text.toLowerCase().trim();
-  const strongYes = /^(yes|yeah|yep|yup|correct|right|affirmative|confirm|ok|okay)$/;
-  if (strongYes.test(s)) return 'yes';
-  const strongNo = /^(no|nope|nah|wrong|incorrect|cancel|stop)$/;
-  if (strongNo.test(s)) return 'no';
-  const hasYes = /\b(yes|yeah|yep|yup|correct|right|affirmative|confirm|ok|okay)\b/.test(s);
-  const hasNo = /\b(no|nope|nah|not|wrong|incorrect|cancel|stop)\b/.test(s);
-  if (hasYes && !hasNo) return 'yes';
-  if (hasNo && !hasYes) return 'no';
-  if (hasYes && hasNo) return 'ambiguous';
-  return 'unknown';
-}
 
-/* ---------- Pathfinding (Dijkstra) ---------- */
 function dijkstra(gr, start, end) {
-  const pq = new MinHeap(); pq.push({cost:0,node:start,path:[]});
+  const pq = new MinHeap();
+  pq.push({cost:0,node:start,path:[]});
   const visited = new Set();
   while (!pq.empty()) {
-    const item = pq.pop(); const {cost,node,path} = item;
+    const item = pq.pop();
+    const {cost, node, path} = item;
     if (visited.has(node)) continue;
-    const newPath = path.concat([node]); visited.add(node);
+    const newPath = path.concat([node]);
+    visited.add(node);
     if (node === end) return {path:newPath, cost};
     const neighbors = gr[node] || {};
     for (const nb in neighbors) {
@@ -1160,125 +1421,235 @@ function dijkstra(gr, start, end) {
   }
   return {path:[], cost: Infinity};
 }
+
 class MinHeap {
   constructor(){ this.a = []; }
   push(x){ this.a.push(x); this._siftUp(); }
-  pop(){ if(this.a.length===0) return null; const r=this.a[0]; const last=this.a.pop(); if(this.a.length){ this.a[0]=last; this._siftDown(); } return r; }
+  pop(){ 
+    if(this.a.length===0) return null; 
+    const r=this.a[0]; 
+    const last=this.a.pop(); 
+    if(this.a.length) { 
+      this.a[0]=last; 
+      this._siftDown(); 
+    } 
+    return r; 
+  }
   empty(){ return this.a.length===0; }
-  _siftUp(){ let i=this.a.length-1; while(i>0){ let p=Math.floor((i-1)/2); if(this.a[p].cost<=this.a[i].cost) break; [this.a[p],this.a[i]]=[this.a[i],this.a[p]]; i=p; } }
-  _siftDown(){ let i=0; const n=this.a.length; while(true){ let l=i*2+1, r=i*2+2, smallest=i; if(l<n && this.a[l].cost < this.a[smallest].cost) smallest=l; if(r<n && this.a[r].cost < this.a[smallest].cost) smallest=r; if(smallest===i) break; [this.a[i],this.a[smallest]]=[this.a[smallest],this.a[i]]; i=smallest; } }
+  _siftUp(){ 
+    let i=this.a.length-1; 
+    while(i>0){ 
+      let p=Math.floor((i-1)/2); 
+      if(this.a[p].cost<=this.a[i].cost) break; 
+      [this.a[p],this.a[i]]=[this.a[i],this.a[p]]; 
+      i=p; 
+    } 
+  }
+  _siftDown(){ 
+    let i=0; 
+    const n=this.a.length; 
+    while(true){ 
+      let l=i*2+1; 
+      let r=i*2+2; 
+      let smallest=i; 
+      if(l<n && this.a[l].cost < this.a[smallest].cost) smallest=l; 
+      if(r<n && this.a[r].cost < this.a[smallest].cost) smallest=r; 
+      if(smallest===i) break; 
+      [this.a[i],this.a[smallest]]=[this.a[smallest],this.a[i]]; 
+      i=smallest; 
+    } 
+  }
 }
 
-/* ---------- Directions (simple VI-friendly) ---------- */
+// SIMPLIFIED direction functions
 function get_simple_direction(from_coords, to_coords) {
   const dx = to_coords[0] - from_coords[0];
   const dy = to_coords[1] - from_coords[1];
+  
+  // Convert to compass directions
   const angle = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
-  if (angle >= 315 || angle < 45) return "east";
-  if (angle >= 45 && angle < 135) return "south";
-  if (angle >= 135 && angle < 225) return "west";
-  return "north";
+  
+  if (angle >= 315 || angle < 45) return "head east";
+  if (angle >= 45 && angle < 135) return "head south"; 
+  if (angle >= 135 && angle < 225) return "head west";
+  return "head north";
 }
 
-/* ---------- Navigation ---------- */
-async function start_navigation(destination) {
-  if (!currentLocation) { announce("No current location. Scan first.", false); return; }
-  if (!destination) { announce("No destination selected.", false); return; }
-  finalDestination = destination; navigationActive = true;
-  window.destinationNode = destination;
-
-  // ensure camera is running so we can do object detection and arrival confirmation
-  if (!scannerRunning) {
-    await startCamera();
+function start_navigation(destination) {
+  if (!currentLocation) { 
+    announce("No current location. Scan QR codes first.", false); 
+    return; 
   }
-
+  if (!destination) { 
+    announce("No destination selected.", false); 
+    return; 
+  }
+  
+  // Store destination for map highlighting
+  window.destinationNode = destination;
+  
   const res = dijkstra(graph, currentLocation, destination);
-  if (!res.path.length || res.cost === Infinity) { announce("No path found to that destination.", false); return; }
-  announce(`Navigation started to ${destination}. ${Math.round(res.cost)} meters total.`, true);
-
+  if (!res.path.length || res.cost === Infinity) { 
+    announce("No path found to that destination.", false); 
+    alert("Routing error: no path found."); 
+    return; 
+  }
+  
+  announce(`Navigation started to ${destination}. Total distance ${Math.round(res.cost)} meters.`, true);
+  
+  // Update map to show destination
   drawMap();
+  
   navigationDialog(res.path, res.cost);
 }
 
-/* navigationDialog: automatically step through path, VI-friendly phrasing, overlay matches voice */
 function navigationDialog(path, total_cost) {
   let idx = 0;
   currentNavigationTarget = path[path.length - 1];
-  // do not require user interaction — auto-advance
-  async function showStep() {
-    if (!navigationActive) return;
+  
+  function showStep() {
     if (idx >= path.length - 1) {
-      // final approach
+      // Final step
       const finalDest = path[path.length - 1];
-      const finalText = `Approaching ${finalDest}. Look for the QR code to confirm arrival.`;
-      overlayText.textContent = finalText;
-      // speak arrival approach and then enable camera scanning for arrival confirmation
-      announce(finalText, true);
-      // start or keep camera running to scan final QR
-      if (!scannerRunning) await startCamera();
-      // set currentNavigationTarget so handleDecoded will confirm arrival automatically
-      currentNavigationTarget = finalDest;
+      const finalText = `Final step: You are approaching ${finalDest}. Look for the QR code to confirm arrival.`;
+      
+      TTS.speak(finalText);
+      overlayText.textContent = `Final: Approaching ${finalDest}`;
+      log(`📍 Final step: Approaching ${finalDest}`);
+      
+      // Simple final dialog
+      const finalConfirm = confirm(`${finalText}\n\nPress OK when you want to scan for arrival confirmation.`);
+      if (finalConfirm) {
+        if (!scannerRunning) { 
+          log("🔄 Restarting camera for arrival confirmation..."); 
+          startBtn.click(); 
+        }
+      } else {
+        TTS.speak("Navigation cancelled.", true);
+        currentNavigationTarget = null;
+        overlayText.textContent = "Navigation cancelled";
+      }
       return;
     }
-
-    const current = path[idx], next = path[idx+1];
-    const distance = (graph[current] && graph[current][next]) ? Math.round(graph[current][next]) : 0;
-    // VI-friendly instruction: "From N001, head east to N002. Distance 9 meters."
-    let direction = "move";
-    if (node_coords[current] && node_coords[next]) direction = get_simple_direction(node_coords[current], node_coords[next]);
-    const instruction = `From ${current}, ${direction} to ${next}. ${distance} meters.`;
-    // Keep overlay & speech identical
-    overlayText.textContent = instruction;
-    // speak (synchronous queue)
-    TTS.speak(instruction, false);
-    log(`NAV STEP ${idx+1}/${path.length-1}: ${instruction}`);
-
-    // wait a sensible time based on distance (short for short distance, longer for longer)
-    const waitMs = Math.min(9000, Math.max(3000, distance * 300)); // e.g., 300 ms per meter, capped
-    // During this interval object detection remains active (processFrame keeps running)
-    await sleep(waitMs);
-
-    // move to next step automatically
-    idx++;
-    // small pause so instructions do not get merged
-    await sleep(400);
-    showStep();
+    
+    const current = path[idx];
+    const next = path[idx + 1];
+    const distance = (graph[current] && graph[current][next]) ? graph[current][next] : 0;
+    
+    // SIMPLE instruction generation
+    let instruction;
+    if (idx === 0) {
+      // First step: just direction from current to next
+      if (node_coords[current] && node_coords[next]) {
+        const direction = get_simple_direction(node_coords[current], node_coords[next]);
+        instruction = `From ${current}, ${direction} towards ${next}`;
+      } else {
+        instruction = `Go from ${current} to ${next}`;
+      }
+    } else {
+      // Subsequent steps: simple "continue to" or "go to"
+      instruction = `Continue to ${next}`;
+    }
+    
+    const stepInfo = `${instruction}. Distance: ${distance.toFixed(0)} meters.`;
+    
+    TTS.speak(stepInfo);
+    log(`📍 Step ${idx + 1}/${path.length - 1}: ${stepInfo}`);
+    overlayText.textContent = `Step ${idx + 1}: ${instruction}`;
+    
+    // Simple dialog
+    const continueNav = confirm(`${stepInfo}\n\nPress OK for next step, Cancel to stop navigation.`);
+    
+    if (continueNav) {
+      idx++;
+      setTimeout(showStep, 500);
+    } else {
+      TTS.speak("Navigation cancelled.", true);
+      currentNavigationTarget = null;
+      overlayText.textContent = "Navigation cancelled";
+      window.destinationNode = undefined; // Clear destination highlighting
+      drawMap(); // Refresh map
+    }
   }
-
-  // Start with a brief spoken intro then begin steps
-  TTS.speak(`Beginning navigation to ${currentNavigationTarget}.`, true);
-  setTimeout(showStep, 900);
+  
+  // Start navigation
+  TTS.speak(`Beginning navigation to ${currentNavigationTarget}.`);
+  setTimeout(showStep, 1000);
 }
 
-/* ---------- UI events ---------- */
-startBtn.onclick = async () => { if (scannerRunning) { announce("Scanner already running.", false); return; } userGesturePerformed = true; await startCamera(); };
-stopBtn.onclick = () => { stopCamera(); };
-restartBtn.onclick = () => { stopCamera(); foundResults.clear(); actionsTriggered = false; scanStartTime = Date.now(); setTimeout(()=>{ startBtn.click(); }, 300); };
-voiceDestBtn.onclick = () => { userGesturePerformed = true; ask_destination_via_voice(); };
-mapBtn.onclick = () => { drawMap(); mapModal.style.display = 'flex'; announce("Map opened. Close when ready.", false); };
-closeMap.onclick = () => { mapModal.style.display = 'none'; announce("Map closed.", false); };
+/* ---------------------------
+   UI handlers & cleanup
+   --------------------------- */
+startBtn.onclick = async () => { 
+  if (scannerRunning) { 
+    announce("Scanner already running.", false); 
+    return; 
+  } 
+  userGesturePerformed = true; 
+  await startCamera(); 
+};
 
-/* ---------- Keyboard shortcuts ---------- */
+stopBtn.onclick = () => { stopCamera(); };
+
+restartBtn.onclick = () => { 
+  stopCamera(); 
+  foundResults.clear(); 
+  actionsTriggered = false; 
+  scanStartTime = Date.now(); 
+  setTimeout(() => { startBtn.click(); }, 300); 
+};
+
+voiceDestBtn.onclick = () => { 
+  userGesturePerformed = true; 
+  ask_destination_via_voice(); 
+};
+
+mapBtn.onclick = () => { 
+  drawMap(); 
+  mapModal.style.display = 'flex'; 
+  announce("Map opened. Close when ready.", false); 
+};
+
+closeMap.onclick = () => { 
+  mapModal.style.display = 'none'; 
+  announce("Map closed.", false); 
+};
+
+// Keyboard shortcuts
 window.addEventListener('keydown', (e) => {
-  if (e.key === 's' || e.key === 'S') startBtn.click();
-  if (e.key === 'v' || e.key === 'V') voiceDestBtn.click();
-  if (e.key === 'm' || e.key === 'M') mapBtn.click();
-  if (e.key === 'r' || e.key === 'R') restartBtn.click();
+  if (e.key === 's' || e.key === 'S') { startBtn.click(); }
+  if (e.key === 'v' || e.key === 'V') { voiceDestBtn.click(); }
+  if (e.key === 'm' || e.key === 'M') { mapBtn.click(); }
+  if (e.key === 'r' || e.key === 'R') { restartBtn.click(); }
   if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
 });
 
-/* ---------- OpenCV init ---------- */
-function onOpenCvReady(){ cvReady = true; backendLog("OpenCV runtime ready"); }
-if (typeof cv !== 'undefined') { if (cv && cv.Mat) onOpenCvReady(); else cv['onRuntimeInitialized'] = onOpenCvReady; }
-else setTimeout(()=>{ if (!cvReady) backendLog("OpenCV not loaded. Falling back to JS color detection."); },7000);
+// OpenCV initialization
+function onOpenCvReady(){ 
+  cvReady = true; 
+  backendLog("OpenCV runtime ready"); 
+  // backendLog used intentionally — this is an internal runtime event and doesn't speak to user
+}
 
-/* ---------- Cleanup ---------- */
-window.addEventListener('beforeunload', () => { if (stream) stream.getTracks().forEach(t => t.stop()); speechSynthesis.cancel(); });
+if (typeof cv !== 'undefined') {
+  if (cv && cv.Mat) onOpenCvReady();
+  else cv['onRuntimeInitialized'] = onOpenCvReady;
+} else {
+  setTimeout(() => { 
+    if (!cvReady) backendLog("OpenCV not loaded. Falling back to JS color detection.");
+  }, 7000);
+}
 
-/* ---------- Init ---------- */
-announce("Ready. Start Scan to begin scanning for QR. Point at a QR to establish your current location.", false);
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => { 
+  if (stream) stream.getTracks().forEach(t => t.stop()); 
+  speechSynthesis.cancel(); 
+});
+
+// Initial announcement
+announce("Ready. Start Scan to begin scanning for three color QR codes. The app will listen automatically when needed.", false);
 log("App initialized. Speech recognition available: " + (SR_AVAILABLE ? 'yes' : 'no'));
-log("Behavior: scan initial QR -> stop camera -> voice destination -> navigation starts -> arrival confirmed by QR.");
+log("Scan sequence: Red (location) + Green (map) + Blue (accessibility)");
 </script>
 </body>
 </html>
