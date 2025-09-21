@@ -496,6 +496,12 @@ function vibrateArrival() {
   if (!('vibrate' in navigator)) return;
   try { navigator.vibrate([80,40,80,40,120]); } catch(e){}
 }
+function vibrateApproachPattern(ratio) {
+  if (!('vibrate' in navigator)) return;
+  if (ratio >= 0.15) {
+    try { navigator.vibrate([100, 100, 100]); } catch(e){}
+  }
+}
 
 /* ---------------------------
    Camera start/stop & loop
@@ -799,11 +805,11 @@ function updateAlertsList(dets) {
 function handleDecoded(decoded, color) {
   const decodedClean = decoded.trim();
   
-  // Check if we're in navigation mode waiting for QR verification
-  if (navigationState.active && navigationState.waitingForQR) {
+  // Check if we're in active navigation mode (continuous tracking)
+  if (navigationState.active) {
     const handled = handleNavigationQRScan(decodedClean);
     if (handled) return; // Navigation system handled it
-    // If not handled, fall through to normal processing
+    // Continue with location updates even during navigation
   }
   
   // Normal navigation target checking (for old-style arrival detection)
@@ -1213,15 +1219,13 @@ async function ask_destination_via_voice(){
     let confirmAttempts = 0;
 
     // Pure voice confirmation with pause before listening
-
-
     while (confirmAttempts < 3) {
       confirmAttempts++;
       
       // Announce first
       announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
       
-      // ✅ Wait for TTS to finish + a small pause
+      // Wait for TTS to finish + a small pause
       await new Promise(r => setTimeout(r, 2000)); 
       
       const interimBox = document.getElementById('listeningBox');
@@ -1253,7 +1257,7 @@ async function ask_destination_via_voice(){
         return;
       } else if (verdict === 'no') {
         announce("Okay, let's try again. Please say your destination.", true);
-        // ✅ Restart destination asking immediately
+        // Restart destination asking immediately
         await ask_destination_via_voice();  
         return; // stop current loop
       } else if (verdict === 'ambiguous') {
@@ -1264,7 +1268,6 @@ async function ask_destination_via_voice(){
         continue;
       }
     }
-
 
     // if we reach here, either user said no or confirmation failed a few times -> try again outer loop
     if (confirmAttempts >= 3) {
@@ -1324,11 +1327,16 @@ function get_initial_direction_simple(p1,p2) {
   return "Turn left";
 }
 
+let destinationNode = null; // Global variable for map highlighting
+
 function start_navigation(destination) {
   if (!currentLocation) { announce("No current location. Scan QR codes first.", false); return; }
   if (!destination) { announce("No destination selected.", false); return; }
   const res = dijkstra(graph, currentLocation, destination);
   if (!res.path.length || res.cost === Infinity) { announce("No path found to that destination.", false); alert("Routing error: no path found."); return; }
+  
+  // Set destination for map highlighting
+  destinationNode = destination;
   
   // Initialize navigation state
   navigationState.active = true;
@@ -1338,11 +1346,19 @@ function start_navigation(destination) {
   navigationState.expectedLocation = null;
   
   announce(`Navigation started to ${destination}. Total distance ${Math.round(res.cost)} meters.`, true);
+  announce(`Keep scanning QR codes along your route. I will continuously track your position and guide you.`, false);
+  
+  // Start camera for continuous scanning
+  if (!scannerRunning) {
+    setTimeout(() => {
+      startCamera();
+    }, 1000);
+  }
   
   // Give first instruction
   setTimeout(() => {
     giveCurrentInstruction();
-  }, 1500);
+  }, 2500);
 }
 
 function giveCurrentInstruction() {
@@ -1375,111 +1391,82 @@ function giveCurrentInstruction() {
   
   announce(stepInfo, true);
   log(`🗺️ Navigation Step ${stepNum}/${totalSteps}: ${instruction} (${distance.toFixed(0)}m)`);
-  overlayText.textContent = `Step ${stepNum}/${totalSteps}: Walk to ${next}`;
+  overlayText.textContent = `Step ${stepNum}/${totalSteps}: Walking to ${next}`;
   
-  // Now wait for voice command to proceed
+  // Set the next expected location for QR verification
+  navigationState.expectedLocation = next;
+  
+  // Announce QR scanning expectation
   setTimeout(() => {
-    waitForNextCommand(next);
+    announce(`Continue walking and scan QR codes along the way. I will automatically detect when you reach ${next}.`, false);
   }, 3000);
 }
 
-async function waitForNextCommand(expectedNext) {
-  if (!navigationState.active) return;
-  
-  announce(`Say 'next' when you reach ${expectedNext}, or 'cancel' to stop navigation.`, false);
-  
-  // Wait indefinitely for user response with longer timeout periods
-  while (navigationState.active) {
-    const interimBox = document.getElementById('listeningBox');
-    interimBox.style.display = 'block';
-    interimBox.textContent = "Listening for 'next' or 'cancel'...";
-    
-    const response = await startSpeechRecognition({
-      lang: 'en-US', 
-      interim: true, 
-      timeout: 30000, // Increased to 30 seconds
-      onInterim: (t) => { interimBox.textContent = "Listening... " + t; }
-    });
-    
-    interimBox.textContent = '';
-    
-    if (!response) {
-      // Just quietly restart listening without nagging
-      interimBox.style.display = 'block';
-      interimBox.textContent = "Waiting... (say 'next' when ready)";
-      await new Promise(r => setTimeout(r, 2000)); // Brief pause
-      continue; // Restart listening loop
-    }
-    
-    const command = response.toLowerCase().trim();
-    log(`Navigation command heard: "${command}"`);
-    
-    if (command.includes('next') || command.includes('ready') || command.includes('continue') || command.includes('arrived')) {
-      startQRVerification(expectedNext);
-      return;
-    } else if (command.includes('cancel') || command.includes('stop') || command.includes('quit')) {
-      cancelNavigation();
-      return;
-    } else if (command.includes('repeat') || command.includes('again')) {
-      giveCurrentInstruction();
-      return;
-    } else {
-      // Don't nag - just show visual feedback and continue listening
-      interimBox.style.display = 'block';
-      interimBox.textContent = "Didn't understand - waiting for 'next' or 'cancel'...";
-      await new Promise(r => setTimeout(r, 1500));
-      continue;
-    }
-  }
-}
-
-function startQRVerification(expectedLocation) {
-  if (!navigationState.active) return;
-  
-  navigationState.waitingForQR = true;
-  navigationState.expectedLocation = expectedLocation;
-  
-  announce(`Please scan the QR code at ${expectedLocation} to verify your location.`, true);
-  overlayText.textContent = `Scan QR at ${expectedLocation} to continue`;
-  
-  // Start camera if not running
-  if (!scannerRunning) {
-    log("🎥 Starting camera for QR verification...");
-    setTimeout(() => {
-      startCamera();
-    }, 1000);
-  }
-}
-
 function handleNavigationQRScan(scannedLocation) {
-  if (!navigationState.active || !navigationState.waitingForQR) return false;
+  if (!navigationState.active) return false;
   
-  const expected = navigationState.expectedLocation;
   const scanned = scannedLocation.trim();
+  log(`🔍 Navigation QR Scan: Current location "${currentLocation}", Scanned "${scanned}"`);
   
-  log(`🔍 QR Verification: Expected "${expected}", Scanned "${scanned}"`);
-  
-  if (scanned === expected || scanned.toLowerCase() === expected.toLowerCase()) {
-    // Correct location scanned
-    announce(`Verified: You are at ${scanned}.`, true);
-    navigationState.waitingForQR = false;
-    navigationState.currentStepIndex++;
+  // Update current location regardless
+  if (scanned !== currentLocation) {
     currentLocation = scanned;
+    log(`📍 Location updated to: ${scanned}`);
+  }
+  
+  // Check if user is still on the path
+  const path = navigationState.path;
+  const currentPathIndex = path.indexOf(scanned);
+  
+  if (currentPathIndex === -1) {
+    // Scanned location is not on the planned path
+    announce(`You are at ${scanned}, which is off the planned route. Recalculating...`, false);
+    log(`❌ Off-route detected: ${scanned}`);
     
-    // Stop camera briefly
-    stopCamera();
+    // Recalculate route from current position
+    const finalDestination = path[path.length - 1];
+    const newRoute = dijkstra(graph, scanned, finalDestination);
     
-    // Continue to next step after brief pause
+    if (newRoute.path.length > 0) {
+      navigationState.path = newRoute.path;
+      navigationState.currentStepIndex = 0;
+      announce(`New route calculated from ${scanned}. Distance ${Math.round(newRoute.cost)} meters.`, false);
+      setTimeout(() => {
+        giveCurrentInstruction();
+      }, 2000);
+    } else {
+      announce(`Cannot find route from ${scanned} to destination. Navigation cancelled.`, true);
+      cancelNavigation();
+    }
+    return true;
+  }
+  
+  // User is on the correct path - check progress
+  const finalDestination = path[path.length - 1];
+  
+  if (scanned === finalDestination) {
+    // User has reached the final destination
+    finishNavigation();
+    return true;
+  }
+  
+  // Update navigation state to current position on path
+  if (currentPathIndex > navigationState.currentStepIndex) {
+    navigationState.currentStepIndex = currentPathIndex;
+    announce(`Good! You are at ${scanned}. Continuing navigation.`, false);
+    
     setTimeout(() => {
       giveCurrentInstruction();
-    }, 2000);
-    
-    return true;
+    }, 1500);
+  } else if (currentPathIndex === navigationState.currentStepIndex) {
+    // User is at expected location - just confirm
+    announce(`Confirmed: You are at ${scanned}.`, false);
   } else {
-    // Wrong location scanned
-    announce(`This is ${scanned}, but I expected ${expected}. Please find ${expected} and scan its QR code.`, false);
-    return false;
+    // User might be backtracking - just update location
+    announce(`You are at ${scanned}.`, false);
   }
+  
+  return true;
 }
 
 function finishNavigation() {
@@ -1490,28 +1477,51 @@ function finishNavigation() {
   // Set flag to prevent asking for new destination
   navigationJustCompleted = true;
   
-  announce(`You have arrived at your destination: ${finalDestination}. Navigation complete!`, true);
-  overlayText.textContent = `Arrived at ${finalDestination} - Navigation Complete`;
+  // Enhanced arrival announcement for doors/facilities
+  let arrivalMessage = `You have arrived at your destination: ${finalDestination}.`;
+  
+  // Add specific messages for different types of locations
+  if (finalDestination.toLowerCase().includes('toilet')) {
+    arrivalMessage += ` You can open the door to enter the restroom.`;
+  } else if (finalDestination.toLowerCase().includes('door')) {
+    arrivalMessage += ` You can open the door to enter.`;
+  } else if (finalDestination.includes('N0')) {
+    arrivalMessage += ` You have reached room ${finalDestination}. You can open the door to enter.`;
+  } else {
+    arrivalMessage += ` You can open the door or access the facility as needed.`;
+  }
+  
+  arrivalMessage += ` Navigation complete!`;
+  
+  announce(arrivalMessage, true);
+  overlayText.textContent = `Arrived at ${finalDestination} - Can Open Door`;
   
   log(`🎯 Navigation completed to ${finalDestination}`);
   
-  // Clear navigation target
+  // Clear navigation target and destination
   currentNavigationTarget = null;
+  destinationNode = null;
   
-  // Vibrate arrival pattern
+  // Extended vibration pattern for arrival
   vibrateArrival();
   
-  // Reset the flag after 3 seconds to allow future navigation
+  // Additional audio cue after a brief pause
+  setTimeout(() => {
+    announce("You may now access your destination. Navigation session ended.", false);
+  }, 3000);
+  
+  // Reset the flag after 5 seconds to allow future navigation
   setTimeout(() => {
     navigationJustCompleted = false;
     announce("Ready for new navigation if needed.", false);
-  }, 3000);
+  }, 5000);
 }
 
 function cancelNavigation() {
   navigationState.active = false;
   navigationState.waitingForQR = false;
   currentNavigationTarget = null;
+  destinationNode = null;
   
   announce("Navigation cancelled.", true);
   overlayText.textContent = "Navigation cancelled";
