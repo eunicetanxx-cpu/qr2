@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>VI-Friendly Indoor Navigation (Color QR + Obstacle Alerts)</title>
+  <title>VI-Friendly Indoor Navigation</title>
   <style>
     :root{
       --bg:#000; --card:#0b1220; --accent:#ffd54f; --accent-2:#00e676; --text:#fff;
@@ -37,19 +37,18 @@
     .btn.grey { background:#9e9e9e; color:#fff; }
 
     .main-controls {
+      position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       background: #071018;
       padding: 14px;
       display: flex;
-      flex-direction: column;
+      justify-content: center;
       gap: 12px;
       z-index: 1000;
       box-shadow: 0 -4px 12px rgba(0,0,0,0.6);
     }
-    .main-controls .controls-row { display: flex; justify-content: space-between; gap: 12px; }
-    .main-controls .controls-row:last-child { justify-content: center; }
 
     .statusBox { margin-top:12px; padding:14px; background:linear-gradient(180deg,#071018,#06121a); border-radius:12px; border:1px solid rgba(0,255,136,0.03); min-height:100px; display:flex; gap:12px; align-items:flex-start; }
     #leftStatus { flex:1; }
@@ -57,13 +56,10 @@
     #srAnnounce { font-size:17px; color:var(--muted); margin-top:6px; }
     #listeningBox { margin-top:10px; font-size:18px; color:#ffb74d; min-height:22px; }
 
-    .scan-progress { margin-top:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .progress-pill { padding:10px 14px; border-radius:999px; background:#071018; color:var(--muted); font-size:18px; border:1px solid rgba(255,255,255,0.02); min-width:200px; text-align:center; }
-    .progress-pill.found { background:var(--accent-2); color:#000; font-weight:800; border:2px solid rgba(0,64,0,0.7); }
-
     #previewWrap { display:flex; gap:12px; margin-top:14px; align-items:flex-start; justify-content:center; }
     #previewCanvas {
-    
+      width: 100%;
+      max-width: 800px;
       height: auto;
       background: #000;
       border-radius: 10px;
@@ -80,9 +76,13 @@
 
     #log { margin-top:12px; background:#02060a; color:#b8d3de; padding:12px; border-radius:10px; height:160px; overflow:auto; font-size:14px; border:1px solid rgba(255,255,255,0.02); }
 
-    .map-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.75); z-index:999; }
-    .map-modal .box { background:#071018; padding:14px; max-width:900px; width:95%; max-height:85%; overflow:auto; border-radius:10px; border:2px solid rgba(255,255,255,0.02); color:#fff; }
-    #mapCanvas { width:100%; height:auto; border-radius:6px; background:#fff; display:block; }
+    .cancel-overlay {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1001;
+      display: none;
+    }
 
     footer { margin-top:14px; color:var(--muted); font-size:13px; text-align:center; }
 
@@ -105,15 +105,11 @@
     <header>
       <div>
         <h1 id="appTitle">VI Indoor Navigation</h1>
-        <div class="subtitle">Color QR navigation • Voice-first • Obstacle alerts</div>
+        <div class="subtitle">QR-based navigation with voice guidance</div>
       </div>
     </header>
 
    <div class="controls" role="region" aria-label="Settings">
-    <select id="colorFilter" class="select" aria-label="Filter QR color. Choose Any, Red, Green or Blue">
-      <option>Any</option><option>Red</option><option>Green</option><option>Blue</option>
-    </select>
-
     <label style="display:flex; align-items:center; gap:8px; margin-left:6px; color:var(--muted); font-size:16px;">
       <input type="checkbox" id="enableDetect" checked aria-label="Enable object detection"> Enable Object Detection
     </label>
@@ -121,14 +117,9 @@
 
    <div class="statusBox" role="status" aria-live="polite">
     <div id="leftStatus">
-      <div id="overlayText">Ready — Start Scan to begin. Voice input will be started automatically when needed.</div>
+      <div id="overlayText">Ready — Start to begin scanning for QR codes.</div>
       <div id="srAnnounce" aria-live="polite" role="log">Status messages will be read aloud.</div>
       <div id="listeningBox" aria-hidden="true"></div>
-      <div class="scan-progress" aria-hidden="false">
-        <div id="progressRed" class="progress-pill" role="status">Red QR: Not found</div>
-        <div id="progressGreen" class="progress-pill" role="status">Green QR: Not found</div>
-        <div id="progressBlue" class="progress-pill" role="status">Blue QR: Not found</div>
-      </div>
     </div>
 
     <div id="alertsPanel">
@@ -140,40 +131,26 @@
    </div>
 
    <div id="previewWrap">
-     <canvas id="previewCanvas" width="800" height="600" aria-label="Camera preview for sighted helper"></canvas>
+     <canvas id="previewCanvas" width="800" height="600" aria-label="Camera preview"></canvas>
    </div>
 
    <div id="log" aria-live="polite" role="log"></div>
 
-   <div class="map-modal" id="mapModal" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
-     <div class="box">
-       <h3 id="mapTitle">Map Preview</h3>
-       <canvas id="mapCanvas" width="900" height="600"></canvas>
-       <div style="text-align:right; margin-top:8px;">
-         <button id="closeMap" class="btn secondary" aria-label="Close map">Close</button>
-       </div>
-     </div>
+   <div class="main-controls" role="region" aria-label="Main controls">
+       <button id="startBtn" class="btn green" aria-pressed="false" aria-label="Start navigation">Start Navigation</button>
    </div>
 
-   <div class="controls main-controls" role="region" aria-label="Main controls">
-     <div class="controls-row">
-       <button id="startBtn" class="btn green" aria-pressed="false" aria-label="Start scanning for QR codes (S)">Start Scan</button>
-       <button id="stopBtn" class="btn red" aria-pressed="false" aria-label="Stop scanning (Space)">Stop Scan</button>
-       <button id="voiceDestBtn" class="btn yellow" aria-label="Voice destination input (V)">Voice Destination</button>
-     </div>
-
-     <div class="controls-row">
-       <button id="restartBtn" class="btn grey" aria-label="Restart scanner (R)">Restart</button>
-       <button id="mapBtn" class="btn grey" aria-label="Show map (M)">Show Map</button>
-     </div>
+   <!-- Cancel button overlay (only shown during navigation) -->
+   <div class="cancel-overlay" id="cancelOverlay">
+     <button id="cancelBtn" class="btn red" aria-label="Cancel navigation">Cancel Navigation</button>
    </div>
 
-   <footer>Built for visually impaired users — spoken prompts, vibration and object alerts help navigation.</footer>
+   <footer>Built for visually impaired users — voice guidance and object detection for safe navigation.</footer>
   </div>
 
 <script>
 /* ---------------------------
-   small helpers & DOM
+   DOM elements and helpers
    --------------------------- */
 const overlayText = document.getElementById('overlayText');
 const srAnnounce = document.getElementById('srAnnounce');
@@ -183,733 +160,45 @@ const canvasDisp = document.createElement('canvas');
 const ctxDisp = canvasDisp.getContext('2d', { willReadFrequently: true });
 const logEl = document.getElementById('log');
 const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-const voiceDestBtn = document.getElementById('voiceDestBtn');
-const colorFilterEl = document.getElementById('colorFilter');
-const mapBtn = document.getElementById('mapBtn');
-const mapModal = document.getElementById('mapModal');
-const mapCanvas = document.getElementById('mapCanvas');
-const closeMap = document.getElementById('closeMap');
-const restartBtn = document.getElementById('restartBtn');
-const progressRed = document.getElementById('progressRed');
-const progressGreen = document.getElementById('progressGreen');
-const progressBlue = document.getElementById('progressBlue');
+const cancelBtn = document.getElementById('cancelBtn');
+const cancelOverlay = document.getElementById('cancelOverlay');
 const enableDetectCheckbox = document.getElementById('enableDetect');
 const alertsList = document.getElementById('alertsList');
 
-const log = (m) => { console.log(m); const t = new Date().toLocaleTimeString(); logEl.innerText += `[${t}] ${m}\n`; logEl.scrollTop = logEl.scrollHeight; };
+const log = (m) => { 
+  console.log(m); 
+  const t = new Date().toLocaleTimeString(); 
+  logEl.innerText += `[${t}] ${m}\n`; 
+  logEl.scrollTop = logEl.scrollHeight; 
+};
 
 /* ---------------------------
-   state
+   State variables
    --------------------------- */
-const SCAN_SIZE = 360;
-let scanBox = { x: 0, y: 0, size: SCAN_SIZE };
-let cvReady = false, animationFrameId = null, stream = null, scannerRunning = false;
-let foundResults = new Map(), scanStartTime = Date.now(), currentLocation = null, currentNavigationTarget = null;
-let latestDetections = [], actionsTriggered = false;
-
-let cocoModel = null, cocoReady = false;
-const DETECTION_INTERVAL_MS = 900, SCORE_THRESHOLD = 0.45, CENTER_TOLERANCE = 0.25;
-const DISTANCE_ESTIMATE_SCALE = 1.6; let lastDetectTime = 0;
-const alertCooldown = 3000; const lastAlertAt = {};
-const HARMFUL_CLASSES = new Set(['person','chair','couch','bench','dining table','stop sign','tv','suitcase','backpack','bed','toilet']);
-
+let cvReady = false;
+let animationFrameId = null;
+let stream = null;
+let scannerRunning = false;
+let currentLocation = null;
+let finalDestination = null;
+let isNavigating = false;
 let userGesturePerformed = false;
 
-// Navigation state for step-by-step system
-let navigationState = {
-  active: false,
-  path: [],
-  currentStepIndex: 0,
-  waitingForQR: false,
-  expectedLocation: null
-};
-
-let navigationJustCompleted = false;
-
-/* ---------------------------
-   TTS simple queue
-   --------------------------- */
-const TTS = {
-  queue: [], speaking: false,
-  speak(text, interrupt=false) {
-    if(!text) return;
-    if(interrupt){ this.queue=[]; if (speechSynthesis.speaking) speechSynthesis.cancel(); }
-    this.queue.push(text); this._maybeSpeak();
-  },
-  _maybeSpeak() {
-    if(this.speaking) return;
-    const next = this.queue.shift();
-    if(!next) return;
-    this.speaking = true;
-    const utt = new SpeechSynthesisUtterance(next); utt.rate = 1.0;
-    utt.onend = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
-    utt.onerror = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
-    speechSynthesis.speak(utt);
-  }
-};
-function announce(text, interrupt=false) {
-  overlayText.textContent = text;
-  srAnnounce.textContent = text;
-  TTS.speak(text, interrupt);
-  log(`[ANNOUNCE] ${text}`);
-}
+// Object detection
+let cocoModel = null;
+let cocoReady = false;
+const DETECTION_INTERVAL_MS = 900;
+const SCORE_THRESHOLD = 0.45;
+const CENTER_TOLERANCE = 0.25;
+const DISTANCE_ESTIMATE_SCALE = 1.6;
+let lastDetectTime = 0;
+let latestDetections = [];
+const alertCooldown = 3000;
+const lastAlertAt = {};
+const HARMFUL_CLASSES = new Set(['person','chair','couch','bench','dining table','stop sign','tv','suitcase','backpack','bed','toilet']);
 
 /* ---------------------------
-   Speech recognition availability
-   --------------------------- */
-let SR_AVAILABLE = false;
-try { const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (SpeechRecognition) SR_AVAILABLE = true; } catch(e){ SR_AVAILABLE=false; }
-
-/* ---------------------------
-   Color processing & QR detection
-   --------------------------- */
-
-/* createColorMask: produce an ImageData mask highlighting pixels of a specific color */
-function createColorMask(imageData, color) {
-  const data = imageData.data;
-  const w = imageData.width, h = imageData.height;
-  const out = new Uint8ClampedArray(data.length);
-  let colorPixels = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i+1], b = data[i+2];
-    let hit = false;
-    if (color === 'red') {
-      hit = (r > g + 25 && r > b + 25 && r > 90) || (r > 140 && r > g * 1.3 && r > b * 1.3);
-    } else if (color === 'green') {
-      hit = (g > r + 25 && g > b + 25 && g > 90) || (g > 140 && g > r * 1.2 && g > b * 1.2);
-    } else if (color === 'blue') {
-      hit = (b > r + 20 && b > g + 20 && b > 70) || (b > 110 && b > r * 1.05 && b > g * 1.05);
-    }
-    if (hit) {
-      out[i] = 255; out[i+1] = 255; out[i+2] = 255; out[i+3] = 255;
-      colorPixels++;
-    } else {
-      out[i] = 0; out[i+1] = 0; out[i+2] = 0; out[i+3] = 255;
-    }
-  }
-  return new ImageData(out, w, h);
-}
-
-/* extractColorChannel: boost the chosen channel and return a grayscale-like ImageData */
-function extractColorChannel(imageData, channel) {
-  const data = imageData.data;
-  const out = new Uint8ClampedArray(data.length);
-  for (let i=0;i<data.length;i+=4){
-    const r = data[i], g = data[i+1], b = data[i+2];
-    let intensity = 0;
-    if (channel === 'red') intensity = r;
-    else if (channel === 'green') intensity = g;
-    else intensity = Math.max(b, Math.floor((b*1.6 + Math.max(r,g)*0.2)));
-    intensity = Math.min(255, Math.max(0, intensity));
-    out[i] = out[i+1] = out[i+2] = intensity;
-    out[i+3] = 255;
-  }
-  return new ImageData(out, imageData.width, imageData.height);
-}
-
-/* enhanceBlueContrast: specific tweaks to help blue QR under low contrast */
-function enhanceBlueContrast(imageData) {
-  const data = imageData.data;
-  const out = new Uint8ClampedArray(data.length);
-  for (let i=0;i<data.length;i+=4){
-    const r = data[i], g = data[i+1], b = data[i+2];
-    let intensity = b;
-    if (b > r && b > g) intensity = Math.min(255, Math.round(b * 1.8));
-    else if (b > 70) intensity = Math.min(255, Math.round(b * 1.3));
-    else intensity = Math.round((r+g+b)/3 * 0.55);
-    out[i]=out[i+1]=out[i+2]=intensity; out[i+3]=255;
-  }
-  return new ImageData(out, imageData.width, imageData.height);
-}
-
-/* detectWithOpenCV: convert to HSV and mask (returns ImageData or null on error) */
-function detectWithOpenCV(imageData, color) {
-  if (!cvReady) return null;
-  try {
-    const src = cv.matFromImageData(imageData);
-    const rgb = new cv.Mat();
-    cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
-    const hsv = new cv.Mat();
-    cv.cvtColor(rgb, hsv, cv.COLOR_RGB2HSV);
-
-    const mask = new cv.Mat();
-    if (color === 'red') {
-      const lower1 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 80, 40, 0]);
-      const upper1 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [10, 255, 255, 255]);
-      const lower2 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [170, 80, 40, 0]);
-      const upper2 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [180, 255, 255, 255]);
-      const m1 = new cv.Mat(), m2 = new cv.Mat();
-      cv.inRange(hsv, lower1, upper1, m1);
-      cv.inRange(hsv, lower2, upper2, m2);
-      cv.add(m1, m2, mask);
-      m1.delete(); m2.delete(); lower1.delete(); upper1.delete(); lower2.delete(); upper2.delete();
-    } else if (color === 'green') {
-      const low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [35, 60, 40, 0]);
-      const high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [85, 255, 255, 255]);
-      cv.inRange(hsv, low, high, mask);
-      low.delete(); high.delete();
-    } else { // blue
-      const low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [90, 40, 30, 0]);
-      const high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [140, 255, 255, 255]);
-      cv.inRange(hsv, low, high, mask);
-      low.delete(); high.delete();
-    }
-
-    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3,3));
-    cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
-    cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, kernel);
-    const rgba = new cv.Mat();
-    cv.cvtColor(mask, rgba, cv.COLOR_GRAY2RGBA);
-
-    const out = new ImageData(new Uint8ClampedArray(rgba.data), rgba.cols, rgba.rows);
-
-    src.delete(); rgb.delete(); hsv.delete(); mask.delete(); kernel.delete(); rgba.delete();
-    return out;
-  } catch (e) {
-    console.warn("OpenCV detect failed:", e);
-    return null;
-  }
-}
-
-/* detect_colored_qr_in_frame_js: main detection strategy combining methods */
-function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
-  const COLORS = ['red','green','blue'];
-  for (const color of COLORS) {
-    if (targetColor && color !== targetColor) continue;
-    // 1) Try enhanced channel (fast)
-    try {
-      const chImg = extractColorChannel(imageData, color);
-      const code = jsQR(chImg.data, chImg.width, chImg.height, { inversionAttempts: 'attemptBoth' });
-      if (code && code.data) {
-        let boxArea = null;
-        if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
-          const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
-          const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
-          boxArea = Math.abs(w*h);
-        }
-        return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Enhanced-Channel', location: code.location || null, boxArea };
-      }
-    } catch(e){ console.warn('Enhanced channel decode error', color, e); }
-
-    // 2) For blue: try color mask approach (helps when QR is on colored background)
-    if (color === 'blue') {
-      try {
-        const maskImg = createColorMask(imageData, color);
-        const code = jsQR(maskImg.data, maskImg.width, maskImg.height, { inversionAttempts: 'attemptBoth' });
-        if (code && code.data) {
-          let boxArea = null;
-          if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
-            const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
-            const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
-            boxArea = Math.abs(w*h);
-          }
-          return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Color-Mask', location: code.location || null, boxArea };
-        }
-      } catch(e){ console.warn('Color mask decode error', color, e); }
-    }
-
-    // 3) If OpenCV available, try HSV masking then decode
-    if (cvReady) {
-      try {
-        const cvProcessed = detectWithOpenCV(imageData, color);
-        if (cvProcessed) {
-          const code = jsQR(cvProcessed.data, cvProcessed.width, cvProcessed.height, { inversionAttempts: 'attemptBoth' });
-          if (code && code.data) {
-            let boxArea = null;
-            if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
-              const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
-              const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
-              boxArea = Math.abs(w*h);
-            }
-            return { found: true, decoded: code.data.trim(), colorFound: color, method: 'OpenCV-HSV', location: code.location || null, boxArea };
-          }
-        }
-      } catch(e){ console.warn('OpenCV approach failed for', color, e); }
-    }
-
-    // 4) For blue try the special contrast enhancer
-    if (color === 'blue') {
-      try {
-        const enhanced = enhanceBlueContrast(imageData);
-        const code = jsQR(enhanced.data, enhanced.width, enhanced.height, { inversionAttempts: 'attemptBoth' });
-        if (code && code.data) {
-          let boxArea = null;
-          if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
-            const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
-            const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
-            boxArea = Math.abs(w*h);
-          }
-          return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Blue-Enhanced', location: code.location || null, boxArea };
-        }
-      } catch(e){ console.warn('Blue enhancement failed', e); }
-    }
-  }
-  return { found: false };
-}
-
-/* ---------------------------
-   Progress UI update
-   --------------------------- */
-function updateProgressDisplay() {
-  const colors = ['red', 'green', 'blue'];
-  let foundCount = 0;
-  
-  colors.forEach(color => {
-    const el = color === 'red' ? progressRed : color === 'green' ? progressGreen : progressBlue;
-    if (foundResults.has(color)) {
-      foundCount++;
-      el.classList.add('found');
-      el.textContent = `${color.toUpperCase()} QR: ${foundResults.get(color).decoded}`;
-    } else {
-      el.classList.remove('found');
-      el.textContent = `${color.charAt(0).toUpperCase() + color.slice(1)} QR: Scanning...`;
-    }
-  });
-  
-  // Only announce progress, don't spam
-  if (foundCount > 0) {
-    const remaining = 3 - foundCount;
-    if (foundCount < 3) {
-      announce(`${foundCount} of 3 QR codes found. ${remaining} remaining.`, false);
-    }
-  }
-  
-  console.log(`Progress: ${foundCount}/3 QR codes found`);
-}
-
-/* ---------------------------
-   Vibration helpers
-   --------------------------- */
-let lastVibrateAt = 0;
-function vibrateProximityFromRatio(ratio) {
-  if (!('vibrate' in navigator)) return;
-  const now = Date.now();
-  if (now - lastVibrateAt < 160) return;
-  lastVibrateAt = now;
-  const intensity = Math.min(1, Math.max(0, (ratio - 0.02) / 0.6));
-  const dur = Math.round(40 + intensity * 280);
-  const pattern = [dur, 40];
-  try { navigator.vibrate(pattern); } catch(e){}
-}
-function vibrateArrival() {
-  if (!('vibrate' in navigator)) return;
-  try { navigator.vibrate([80,40,80,40,120]); } catch(e){}
-}
-
-/* ---------------------------
-   Camera start/stop & loop
-   --------------------------- */
-async function startCamera() {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
-    });
-    const video = document.createElement('video');
-    video.autoplay = true; video.playsInline = true; video.muted = true;
-    video.srcObject = stream;
-    await video.play();
-
-    canvasDisp.width = video.videoWidth || 1280;
-    canvasDisp.height = video.videoHeight || 720;
-    previewCanvas.width = Math.min(1280, canvasDisp.width);
-    previewCanvas.height = Math.min(720, canvasDisp.height);
-
-    // centre scan box
-    scanBox.size = Math.min(SCAN_SIZE, Math.floor(Math.min(canvasDisp.width, canvasDisp.height) * 0.5));
-    scanBox.x = Math.floor((canvasDisp.width - scanBox.size)/2);
-    scanBox.y = Math.floor((canvasDisp.height - scanBox.size)/2);
-
-    scanStartTime = Date.now();
-    foundResults.clear();
-    actionsTriggered = false;
-    scannerRunning = true;
-    announce("Camera started. Scanning for QR codes. Point the phone at the QR.", true);
-    updateProgressDisplay();
-    processFrame(video);
-    startBtn.setAttribute('aria-pressed','true');
-    userGesturePerformed = true;
-    return true;
-  } catch(e) {
-    announce("Camera access denied or unavailable. Check permissions and try again.", true);
-    log("Camera error: " + e);
-    return false;
-  }
-}
-function stopCamera() {
-  if (stream) stream.getTracks().forEach(t => t.stop());
-  if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-  scannerRunning = false;
-  announce("Scanner stopped.", true);
-  startBtn.setAttribute('aria-pressed','false');
-  log("Camera stopped.");
-}
-
-/* ---------------------------
-   Load coco model (async)
-   --------------------------- */
-async function loadCocoModel() {
-  try {
-    log("Loading coco-ssd...");
-    cocoModel = await cocoSsd.load();
-    cocoReady = true;
-    log("coco-ssd loaded");
-  } catch(e) {
-    cocoReady = false;
-    log("coco load failed: " + e);
-  }
-}
-loadCocoModel();
-
-/* ---------------------------
-   Draw helper for preview and overlays
-   --------------------------- */
-function drawPreviewFrame(tmpCanvas) {
-  try {
-    previewCtx.clearRect(0,0,previewCanvas.width, previewCanvas.height);
-    previewCtx.drawImage(tmpCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
-
-    // overlay scan box (scaled)
-    const sx = previewCanvas.width / tmpCanvas.width;
-    const sy = previewCanvas.height / tmpCanvas.height;
-    previewCtx.strokeStyle = 'rgba(0,255,128,0.9)';
-    previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
-    previewCtx.strokeRect(Math.round(scanBox.x*sx), Math.round(scanBox.y*sy), Math.round(scanBox.size*sx), Math.round(scanBox.size*sy));
-
-    // overlay object detections
-    if (latestDetections && latestDetections.length && enableDetectCheckbox.checked) {
-      previewCtx.save();
-      previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
-      for (const d of latestDetections) {
-        const [x,y,w,h] = d.bbox;
-        const rx = Math.round(x * sx), ry = Math.round(y * sy), rw = Math.round(w * sx), rh = Math.round(h * sy);
-        previewCtx.strokeStyle = 'rgba(255,80,80,0.95)';
-        previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
-        previewCtx.beginPath();
-        previewCtx.strokeRect(rx, ry, rw, rh);
-        const label = `${d.class} ${(d.score*100).toFixed(0)}%`;
-        previewCtx.font = `${14}px Arial`;
-        const tw = previewCtx.measureText(label).width + 10;
-        previewCtx.fillRect(rx, Math.max(ry-22, 0), tw, 20);
-        previewCtx.fillStyle = '#fff';
-        previewCtx.fillText(label, rx+5, Math.max(ry-8, 12));
-        previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
-      }
-      previewCtx.restore();
-    }
-  } catch(e) { console.warn("drawPreviewFrame error", e); }
-}
-
-/* ---------------------------
-   Processing loop (QR + Object detection)
-   --------------------------- */
-let qrDecoderBusy = false, frameSkipCounter = 0;
-async function processFrame(video) {
-  if (!scannerRunning) return;
-  animationFrameId = requestAnimationFrame(() => processFrame(video));
-  if (!video || video.readyState < 2) return;
-
-  frameSkipCounter++;
-  if (frameSkipCounter % 2 !== 0 && foundResults.size < 3) return;
-
-  // Ensure canvas sizes
-  canvasDisp.width = video.videoWidth || canvasDisp.width;
-  canvasDisp.height = video.videoHeight || canvasDisp.height;
-
-  // Draw frame into processing canvas
-  ctxDisp.drawImage(video, 0, 0, canvasDisp.width, canvasDisp.height);
-
-  // Create temporary preview canvas
-  const tmp = document.createElement('canvas');
-  tmp.width = canvasDisp.width; 
-  tmp.height = canvasDisp.height;
-  const tmpCtx = tmp.getContext('2d');
-  tmpCtx.drawImage(canvasDisp, 0, 0);
-  
-  // Draw scan box for sighted helper
-  tmpCtx.strokeStyle = '#00ff88'; 
-  tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
-  tmpCtx.strokeRect(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
-
-  // Draw object detection boxes if available
-  if (latestDetections && latestDetections.length > 0 && enableDetectCheckbox.checked) {
-    tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
-    for (const d of latestDetections) {
-      tmpCtx.strokeStyle = 'rgba(255,80,80,0.9)';
-      tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
-      const [x,y,w,h] = d.bbox;
-      tmpCtx.strokeRect(x, y, w, h);
-      const label = `${d.class} ${(d.score*100).toFixed(0)}%`;
-      const labelW = tmpCtx.measureText(label).width + 10;
-      tmpCtx.fillRect(x, Math.max(y-22,0), labelW, 20);
-      tmpCtx.fillStyle = '#fff';
-      tmpCtx.fillText(label, x+5, Math.max(y-8, 12));
-      tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
-    }
-  }
-
-  // Draw to visible preview
-  drawPreviewFrame(tmp);
-
-  if (qrDecoderBusy) return;
-  qrDecoderBusy = true;
-
-  setTimeout(async () => {
-    try {
-      // Read scan area image data
-      const imageData = ctxDisp.getImageData(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
-      const targetFilter = (colorFilterEl.value === "Any") ? null : colorFilterEl.value.toLowerCase();
-      const colorOrder = targetFilter ? [targetFilter] : ['blue','red','green'];
-      
-      for (const color of colorOrder) {
-        if (foundResults.has(color)) continue;
-        
-        const detection = detect_colored_qr_in_frame_js(imageData, color);
-        if (detection.found && detection.decoded) {
-          const decodedClean = detection.decoded.trim();
-          foundResults.set(color, { 
-            decoded: decodedClean, 
-            method: detection.method || 'unknown', 
-            boxArea: detection.boxArea || null 
-          });
-          
-          announce(`${color} QR found: ${decodedClean}`, true);
-          updateProgressDisplay();
-          
-          if (detection.boxArea) {
-            const scanArea = scanBox.size * scanBox.size;
-            const ratio = detection.boxArea / scanArea;
-            vibrateProximityFromRatio(ratio);
-            if (ratio >= 0.15) vibrateApproachPattern(ratio);
-          }
-          
-          handleDecoded(decodedClean, color);
-          break;
-        }
-      }
-
-      // CRITICAL: Check if ALL 3 colors are found before triggering
-      const requiredColors = ['red', 'green', 'blue'];
-      const foundColors = Array.from(foundResults.keys());
-      const allColorsFound = requiredColors.every(color => foundColors.includes(color));
-      
-      console.log('QR Status Check:');
-      console.log('Required colors:', requiredColors);
-      console.log('Found colors:', foundColors);
-      console.log('All colors found:', allColorsFound);
-      console.log('Actions triggered:', actionsTriggered);
-      
-      // Only trigger if ALL 3 colors found AND not already triggered
-      if (!actionsTriggered && allColorsFound) {
-        console.log('TRIGGERING ALL ACTIONS - All 3 QR codes detected!');
-        triggerAllActionsOnce();
-      }
-
-      // Object detection logic (unchanged)...
-      const now = performance.now();
-      if (enableDetectCheckbox.checked && cocoReady && (now - lastDetectTime > DETECTION_INTERVAL_MS)) {
-        lastDetectTime = now;
-        try {
-          const off = document.createElement('canvas');
-          const D_W = 480;
-          const scale = D_W / canvasDisp.width;
-          off.width = D_W;
-          off.height = Math.floor(canvasDisp.height * scale);
-          const offCtx = off.getContext('2d');
-          offCtx.drawImage(canvasDisp, 0, 0, off.width, off.height);
-          const predictions = await cocoModel.detect(off);
-          const preds = predictions.filter(p => p.score >= SCORE_THRESHOLD);
-          const scaleBack = canvasDisp.width / off.width;
-          latestDetections = preds.map(p => {
-            const [x,y,w,h] = p.bbox;
-            return { class: p.class, score: p.score, bbox: [x*scaleBack, y*scaleBack, w*scaleBack, h*scaleBack] };
-          });
-
-          if (latestDetections.length) {
-            updateAlertsList(latestDetections.slice(0,4));
-          } else {
-            updateAlertsList([]);
-          }
-
-          // Obstacle detection logic (unchanged)...
-          let candidate = null;
-          const fh = canvasDisp.height;
-          const fw = canvasDisp.width;
-          for (const det of latestDetections) {
-            if (!HARMFUL_CLASSES.has(det.class)) continue;
-            const [x,y,w,h] = det.bbox;
-            const cx = x + w/2;
-            const centerDelta = Math.abs(cx - fw/2) / fw;
-            const score = (h / fh) * (1.0 - Math.min(centerDelta / 0.5, 1.0));
-            if (!candidate || score > candidate.score) candidate = {det, score};
-          }
-          if (candidate) {
-            const det = candidate.det;
-            const [x,y,w,h] = det.bbox;
-            const cx = x + w/2;
-            const centerDelta = Math.abs(cx - fw/2) / fw;
-            const isAhead = (centerDelta <= CENTER_TOLERANCE) && (h / fh >= 0.06);
-            if (isAhead) {
-              const cls = det.class;
-              const nowTs = Date.now();
-              if (!lastAlertAt[cls] || (nowTs - lastAlertAt[cls] > alertCooldown)) {
-                const ratio = (h / fh);
-                let distMeters = (DISTANCE_ESTIMATE_SCALE / Math.max(ratio, 0.02));
-                distMeters = Math.min(Math.max(distMeters, 0.2), 50.0);
-                if (distMeters <= 5.0) {
-                  announce(`Obstacle ahead: ${cls}, approximately ${distMeters.toFixed(1)} meters.`, false);
-                  lastAlertAt[cls] = nowTs;
-                  log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`);
-                }
-              }
-            }
-          }
-        } catch(e) {
-          console.warn("Object detection error", e);
-        }
-      }
-
-    } catch(e) {
-      console.error("Frame processing error:", e);
-    } finally {
-      qrDecoderBusy = false;
-    }
-  }, 36);
-}
-
-
-/* ---------------------------
-   Alerts list UI
-   --------------------------- */
-function updateAlertsList(dets) {
-  alertsList.innerHTML = '';
-  for (const d of dets) {
-    const li = document.createElement('li');
-    li.textContent = `${d.class} ${(d.score*100).toFixed(0)}%`;
-    alertsList.appendChild(li);
-  }
-  if (dets.length === 0) {
-    const li = document.createElement('li'); li.textContent = 'No recent alerts'; alertsList.appendChild(li);
-  }
-}
-
-/* ---------------------------
-   Simple arrival/decoded handling with navigation integration
-   --------------------------- */
-function handleDecoded(decoded, color) {
-  const decodedClean = decoded.trim();
-  
-  // Check if we're in navigation mode waiting for QR verification
-  if (navigationState.active && navigationState.waitingForQR) {
-    const handled = handleNavigationQRScan(decodedClean);
-    if (handled) return; // Navigation system handled it
-    // If not handled, fall through to normal processing
-  }
-  
-  // Normal navigation target checking (for old-style arrival detection)
-  if (currentNavigationTarget && !navigationState.active) {
-    const target = (currentNavigationTarget || "").toLowerCase();
-    const detected = decodedClean.toLowerCase();
-    if (detected === target || detected.includes(target) || target.includes(detected)) {
-      log("Arrival confirmed: " + decodedClean);
-      announce(`You have arrived at ${decodedClean}.`, true);
-      currentLocation = decodedClean; 
-      currentNavigationTarget = null;
-      stopCamera();
-      vibrateArrival();
-      setTimeout(()=>{ alert(`Arrival confirmed: ${decodedClean}`); }, 800);
-      return;
-    } else {
-      if (decodedClean !== currentLocation) {
-        currentLocation = decodedClean;
-        log("Passed checkpoint: " + decodedClean);
-        announce(`Passed ${decodedClean}`, false);
-      }
-      return;
-    }
-  }
-  
-  // Standard location update - but NOT if navigation just completed
-  if (decodedClean !== currentLocation && !navigationJustCompleted) {
-    currentLocation = decodedClean;
-    log("Current location updated: " + decodedClean);
-    announce(`Current location: ${decodedClean}`, false);
-    setTimeout(()=>{ announce("When ready, speak your destination. The app will listen automatically.", false); }, 900);
-  } else if (navigationJustCompleted) {
-    // Just update location quietly after navigation completion
-    currentLocation = decodedClean;
-    log("Location updated after navigation completion: " + decodedClean);
-  }
-}
-
-/* ---------------------------
-   After 3 QRs found
-   --------------------------- */
-function triggerAllActionsOnce() {
-  if (actionsTriggered) {
-    console.log('Actions already triggered, skipping');
-    return;
-  }
-  
-  // Double-check that we have all required colors
-  const requiredColors = ['red', 'green', 'blue'];
-  const foundColors = Array.from(foundResults.keys());
-  const allColorsFound = requiredColors.every(color => foundColors.includes(color));
-  
-  if (!allColorsFound) {
-    console.log('Not all colors found yet:', foundColors);
-    return;
-  }
-  
-  actionsTriggered = true;
-  
-  log("ALL THREE COLOR QR CODES DETECTED - TRIGGERING ACTIONS");
-  announce("All three QR codes detected. Processing information now.", true);
-  
-  const greenQR = foundResults.get('green')?.decoded || '';
-  const blueQR = foundResults.get('blue')?.decoded || '';
-  const redQR = foundResults.get('red')?.decoded || '';
-  
-  console.log('QR Code Results:');
-  console.log('Red QR (Location):', redQR);
-  console.log('Green QR (Map):', greenQR);
-  console.log('Blue QR (Accessibility):', blueQR);
-  
-  // Set current location immediately
-  currentLocation = redQR;
-  
-  stopCamera();
-  
-  // Sequence the announcements with proper timing
-  setTimeout(() => { 
-    log("Map info: " + greenQR); 
-    announce("Map information available.", false); 
-    drawMap(); 
-    mapModal.style.display = 'flex'; 
-  }, 700);
-  
-  setTimeout(() => { 
-    log("Accessibility: " + blueQR); 
-    announce("Accessibility information: " + blueQR, false); 
-  }, 1500);
-  
-  setTimeout(() => { 
-    log("Current location confirmed: " + redQR); 
-    announce("Your current location is " + redQR, false); 
-  }, 2500);
-  
-  setTimeout(() => { 
-    if (SR_AVAILABLE) { 
-      announce("I will listen for your destination now.", true); 
-      ask_destination_via_voice(); 
-    } else { 
-      show_destination_modal(); 
-    } 
-  }, 3600);
-}
-
-/* ---------------------------
-   Map drawing (keeps your improved label placement)
+   Navigation graph (same as before)
    --------------------------- */
 const node_coords = {
   "Female Toilet (NGT1)": [2009, 1357],
@@ -930,6 +219,7 @@ const node_coords = {
   "N011": [1251, 1340],
   "N012": [1597, 1340],
 };
+
 const graph_raw = {
   "Female Toilet (NGT1)": {"Male Toilet (NGT2)": 1.89},
   "N001": {"Female Toilet (NGT1)": 9.00, "N001 (backdoor)": 6.77, "N002": 9.00},
@@ -947,6 +237,7 @@ const graph_raw = {
   "N011": {"N012": 12.11},
   "N012": {"Male Toilet (NGT2)": 12.55}
 };
+
 function add_bidirectional_edges(graph_in) {
   const new_graph = {};
   for (const k in graph_in) new_graph[k] = {};
@@ -960,214 +251,703 @@ function add_bidirectional_edges(graph_in) {
   }
   return new_graph;
 }
+
 const graph = add_bidirectional_edges(graph_raw);
 
-function drawMap() {
-  const ctx = mapCanvas.getContext('2d');
-  ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
-
-  console.log("Drawing map. currentLocation =", currentLocation);
-  console.log("destinationNode =", typeof destinationNode !== "undefined" ? destinationNode : "undefined");
-
-  const cw = mapCanvas.width, ch = mapCanvas.height, margin = 40;
-  const xs = Object.values(node_coords).map(p => p[0]);
-  const ys = Object.values(node_coords).map(p => p[1]);
-  const minx = Math.min(...xs), maxx = Math.max(...xs);
-  const miny = Math.min(...ys), maxy = Math.max(...ys);
-
-  const project = (p) => {
-    const sx = (p[0] - minx) / (maxx - minx || 1);
-    const sy = (p[1] - miny) / (maxy - miny || 1);
-    return [
-      margin + Math.floor(sx * (cw - margin * 2)),
-      margin + Math.floor(sy * (ch - margin * 2))
-    ];
-  };
-
-  // Draw edges
-  ctx.strokeStyle = "#bbb";
-  ctx.lineWidth = 1;
-  for (const a in graph) {
-    for (const b in graph[a]) {
-      if (node_coords[a] && node_coords[b]) {
-        const pa = project(node_coords[a]);
-        const pb = project(node_coords[b]);
-        ctx.beginPath();
-        ctx.moveTo(pa[0], pa[1]);
-        ctx.lineTo(pb[0], pb[1]);
-        ctx.stroke();
-      }
+/* ---------------------------
+   TTS Queue
+   --------------------------- */
+const TTS = {
+  queue: [], 
+  speaking: false,
+  speak(text, interrupt=false) {
+    if(!text) return;
+    if(interrupt){ 
+      this.queue=[]; 
+      if (speechSynthesis.speaking) speechSynthesis.cancel(); 
     }
+    this.queue.push(text); 
+    this._maybeSpeak();
+  },
+  _maybeSpeak() {
+    if(this.speaking) return;
+    const next = this.queue.shift();
+    if(!next) return;
+    this.speaking = true;
+    const utt = new SpeechSynthesisUtterance(next); 
+    utt.rate = 1.0;
+    utt.onend = () => { 
+      this.speaking = false; 
+      setTimeout(()=>this._maybeSpeak(), 80); 
+    };
+    utt.onerror = () => { 
+      this.speaking = false; 
+      setTimeout(()=>this._maybeSpeak(), 80); 
+    };
+    speechSynthesis.speak(utt);
   }
+};
 
-  // Prepare labels
-  const labels = [];
-  ctx.font = "12px Arial";
-  for (const name in node_coords) {
-    const p = project(node_coords[name]);
-    const text = name;
-    const padding = 6;
-    const textW = Math.min(300, ctx.measureText(text).width);
-    let lx = p[0] + 8;
-    let ly = p[1] - 6;
-    const labelH = 18;
-
-    if (lx + textW + padding * 2 > cw - margin) lx = p[0] - textW - padding * 2 - 8;
-    if (lx < margin) lx = margin;
-    if (ly < margin) ly = margin;
-
-    labels.push({ name, p, lx, ly, textW, labelH, padding });
-  }
-
-  // Prevent label overlaps
-  for (let i = 0; i < labels.length; i++) {
-    const a = labels[i];
-    for (let j = 0; j < i; j++) {
-      const b = labels[j];
-      const aLeft = a.lx, aRight = a.lx + a.textW + a.padding * 2;
-      const aTop = a.ly, aBottom = a.ly + a.labelH + a.padding;
-      const bLeft = b.lx, bRight = b.lx + b.textW + b.padding * 2;
-      const bTop = b.ly, bBottom = b.ly + b.labelH + b.padding;
-      const overlapX = !(aRight < bLeft || aLeft > bRight);
-      const overlapY = !(aBottom < bTop || aTop > bBottom);
-      if (overlapX && overlapY) {
-        a.ly = bBottom + 4;
-      }
-    }
-  }
-
-  // Draw nodes and labels with proper highlighting
-  for (const lbl of labels) {
-    const p = lbl.p;
-
-    console.log(`Checking node ${lbl.name}: currentLocation=${currentLocation}, match=${lbl.name === currentLocation}`);
-
-    // Node highlighting logic
-    if (currentLocation && lbl.name === currentLocation) {
-      // 🔴 Current location in red
-      console.log(`Highlighting ${lbl.name} as current location in RED`);
-      ctx.fillStyle = "#ff4444";
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], 10, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (typeof destinationNode !== "undefined" && lbl.name === destinationNode) {
-      // 🟢 Destination in green
-      console.log(`Highlighting ${lbl.name} as destination in GREEN`);
-      ctx.fillStyle = "#22bb33";
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], 9, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      // ⚫ Normal nodes
-      ctx.fillStyle = "#333";
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], 5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Label box + text
-    const bx = lbl.lx, by = lbl.ly - 4;
-    const bw = lbl.textW + lbl.padding * 2;
-    const bh = lbl.labelH + lbl.padding / 1.5;
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    roundRect(ctx, bx, by, bw, bh, 6, true, false);
-    ctx.fillStyle = '#000';
-    ctx.fillText(lbl.name, bx + lbl.padding, by + bh / 1.35);
-
-    // Connection line
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(p[0], p[1]);
-    ctx.lineTo(bx + 4, by + bh / 2);
-    ctx.stroke();
-  }
-}
-
-function roundRect(ctx, x, y, w, h, r, fill, stroke) {
-  if (typeof r === 'undefined') r = 5;
-  ctx.beginPath();
-  ctx.moveTo(x+r, y);
-  ctx.arcTo(x+w, y, x+w, y+h, r);
-  ctx.arcTo(x+w, y+h, x, y+h, r);
-  ctx.arcTo(x, y+h, x, y, r);
-  ctx.arcTo(x, y, x+w, y, r);
-  ctx.closePath();
-  if (fill) ctx.fill();
-  if (stroke) ctx.stroke();
+function announce(text, interrupt=false) {
+  overlayText.textContent = text;
+  srAnnounce.textContent = text;
+  TTS.speak(text, interrupt);
+  log(`[ANNOUNCE] ${text}`);
 }
 
 /* ---------------------------
-   Speech + destination helpers (improved confirmation handling)
+   Speech Recognition
    --------------------------- */
-function show_destination_modal() {
-  if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
-  const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
-  const candidateList = candidates.map((p,i)=>`${i+1}. ${p}`).join('\n');
-  announce("Opening text selection. Check the screen for options.", false);
-  const dest = prompt(`Current: ${currentLocation}\nAvailable:\n${candidateList}\n\nType name or number:`);
-  if (!dest) { announce("No destination selected.", false); return; }
-  let destination = dest.trim();
-  const destNumber = parseInt(destination);
-  if (!isNaN(destNumber) && destNumber >=1 && destNumber <= candidates.length) {
-    destination = candidates[destNumber-1];
-  } else {
-    const best = findBestLocationMatch(destination, candidates);
-    if (best) destination = best;
-    else { announce("Destination not found. Please try voice input.", false); setTimeout(()=>ask_destination_via_voice(), 600); return; }
-  }
-  announce(`You selected ${destination}. Confirming.`, false);
-  if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
-  else { announce("Selection cancelled. Try again.", false); setTimeout(()=>show_destination_modal(), 500); }
-}
-function findBestLocationMatch(input, candidates) {
-  const s = input.toLowerCase().trim();
-  let m = candidates.find(c=>c.toLowerCase()===s);
-  if (m) return m;
-  m = candidates.find(c=>c.toLowerCase().includes(s));
-  if (m) return m;
-  m = candidates.find(c=>c.toLowerCase().split(' ').some(word => s.includes(word) || word.includes(s)));
-  if (m) return m;
-  return null;
+let SR_AVAILABLE = false;
+try { 
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; 
+  if (SpeechRecognition) SR_AVAILABLE = true; 
+} catch(e){ 
+  SR_AVAILABLE=false; 
 }
 
-function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInterim=null} = {}) {
+function startSpeechRecognition({lang='en-US', interim=true, timeout=15000, onInterim=null} = {}) {
   return new Promise((resolve) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { resolve(null); return; }
+    
     let recognition;
     try { recognition = new SR(); } catch(e) { resolve(null); return; }
-    recognition.lang = lang; recognition.interimResults = interim; recognition.maxAlternatives = 3;
+    
+    recognition.lang = lang; 
+    recognition.interimResults = interim; 
+    recognition.maxAlternatives = 3;
+    
     let finalTranscript = '';
     let resolved = false;
+    
     const timer = setTimeout(() => {
-      if (!resolved) { resolved = true; try { recognition.stop(); } catch(e){}; resolve(null); }
+      if (!resolved) { 
+        resolved = true; 
+        try { recognition.stop(); } catch(e){}; 
+        resolve(null); 
+      }
     }, timeout);
+    
     recognition.onresult = (evt) => {
       const results = Array.from(evt.results);
       const interimText = results.map(r => r[0].transcript).join(' ');
       if (onInterim) onInterim(interimText);
-      for (const r of results) { if (r.isFinal) finalTranscript = r[0].transcript; }
-      if (finalTranscript && !resolved) { resolved = true; clearTimeout(timer); try { recognition.stop(); } catch(e){}; resolve(finalTranscript.trim()); }
+      
+      for (const r of results) { 
+        if (r.isFinal) finalTranscript = r[0].transcript; 
+      }
+      
+      if (finalTranscript && !resolved) { 
+        resolved = true; 
+        clearTimeout(timer); 
+        try { recognition.stop(); } catch(e){}; 
+        resolve(finalTranscript.trim()); 
+      }
     };
+    
     recognition.onend = () => {
       if (resolved) return;
-      resolved = true; clearTimeout(timer); resolve(finalTranscript ? finalTranscript.trim() : null);
+      resolved = true; 
+      clearTimeout(timer); 
+      resolve(finalTranscript ? finalTranscript.trim() : null);
     };
+    
     recognition.onerror = (e) => {
       if (resolved) return;
-      resolved = true; clearTimeout(timer); try { recognition.stop(); } catch(err){}; resolve(null);
+      resolved = true; 
+      clearTimeout(timer); 
+      try { recognition.stop(); } catch(err){}; 
+      resolve(null);
     };
+    
     try { recognition.start(); } catch(e) { clearTimeout(timer); resolve(null); }
   });
 }
 
-// interpret confirmation more robustly
+/* ---------------------------
+   QR Code Detection (simplified - any QR)
+   --------------------------- */
+function detectQRInFrame(imageData) {
+  try {
+    // Try standard detection first
+    const code = jsQR(imageData.data, imageData.width, imageData.height, { 
+      inversionAttempts: 'attemptBoth' 
+    });
+    
+    if (code && code.data) {
+      return {
+        found: true,
+        decoded: code.data.trim(),
+        location: code.location || null
+      };
+    }
+    
+    return { found: false };
+  } catch(e) {
+    console.warn('QR detection error:', e);
+    return { found: false };
+  }
+}
+
+/* ---------------------------
+   Camera and processing
+   --------------------------- */
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { 
+        facingMode: "environment", 
+        width: { ideal: 1280 }, 
+        height: { ideal: 720 } 
+      }, 
+      audio: false
+    });
+    
+    const video = document.createElement('video');
+    video.autoplay = true; 
+    video.playsInline = true; 
+    video.muted = true;
+    video.srcObject = stream;
+    await video.play();
+
+    canvasDisp.width = video.videoWidth || 1280;
+    canvasDisp.height = video.videoHeight || 720;
+    previewCanvas.width = Math.min(800, canvasDisp.width);
+    previewCanvas.height = Math.min(600, canvasDisp.height);
+
+    scannerRunning = true;
+    processFrame(video);
+    userGesturePerformed = true;
+    return true;
+  } catch(e) {
+    announce("Camera access denied or unavailable. Check permissions and try again.", true);
+    log("Camera error: " + e);
+    return false;
+  }
+}
+
+function stopCamera() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (animationFrameId) { 
+    cancelAnimationFrame(animationFrameId); 
+    animationFrameId = null; 
+  }
+  scannerRunning = false;
+  log("Camera stopped.");
+}
+
+/* ---------------------------
+   Load COCO model
+   --------------------------- */
+async function loadCocoModel() {
+  try {
+    log("Loading coco-ssd...");
+    cocoModel = await cocoSsd.load();
+    cocoReady = true;
+    log("coco-ssd loaded");
+  } catch(e) {
+    cocoReady = false;
+    log("coco load failed: " + e);
+  }
+}
+loadCocoModel();
+
+/* ---------------------------
+   Frame processing
+   --------------------------- */
+let qrDecoderBusy = false;
+let frameSkipCounter = 0;
+
+async function processFrame(video) {
+  if (!scannerRunning) return;
+  animationFrameId = requestAnimationFrame(() => processFrame(video));
+  if (!video || video.readyState < 2) return;
+
+  frameSkipCounter++;
+  if (frameSkipCounter % 2 !== 0) return; // Process every other frame
+
+  // Ensure canvas sizes
+  canvasDisp.width = video.videoWidth || canvasDisp.width;
+  canvasDisp.height = video.videoHeight || canvasDisp.height;
+
+  // Draw frame
+  ctxDisp.drawImage(video, 0, 0, canvasDisp.width, canvasDisp.height);
+  
+  // Update preview
+  drawPreviewFrame();
+
+  // QR detection (non-blocking)
+  if (!qrDecoderBusy) {
+    qrDecoderBusy = true;
+    setTimeout(async () => {
+      try {
+        // Use full frame for QR detection
+        const imageData = ctxDisp.getImageData(0, 0, canvasDisp.width, canvasDisp.height);
+        const detection = detectQRInFrame(imageData);
+        
+        if (detection.found && detection.decoded) {
+          handleQRDetected(detection.decoded, detection.location);
+        }
+      } catch(e) {
+        console.error("QR processing error:", e);
+      } finally {
+        qrDecoderBusy = false;
+      }
+    }, 16);
+  }
+
+  // Object detection (only if navigation is active)
+  if (isNavigating && enableDetectCheckbox.checked && cocoReady) {
+    const now = performance.now();
+    if (now - lastDetectTime > DETECTION_INTERVAL_MS) {
+      lastDetectTime = now;
+      performObjectDetection();
+    }
+  }
+}
+
+function drawPreviewFrame() {
+  try {
+    const sx = previewCanvas.width / canvasDisp.width;
+    const sy = previewCanvas.height / canvasDisp.height;
+    
+    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    previewCtx.drawImage(canvasDisp, 0, 0, previewCanvas.width, previewCanvas.height);
+
+    // Draw object detection overlays
+    if (latestDetections && latestDetections.length && enableDetectCheckbox.checked) {
+      previewCtx.save();
+      previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
+      
+      for (const d of latestDetections) {
+        const [x, y, w, h] = d.bbox;
+        const rx = Math.round(x * sx);
+        const ry = Math.round(y * sy);
+        const rw = Math.round(w * sx);
+        const rh = Math.round(h * sy);
+        
+        previewCtx.strokeStyle = 'rgba(255,80,80,0.95)';
+        previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
+        previewCtx.strokeRect(rx, ry, rw, rh);
+        
+        const label = `${d.class} ${(d.score*100).toFixed(0)}%`;
+        previewCtx.font = '14px Arial';
+        const tw = previewCtx.measureText(label).width + 10;
+        previewCtx.fillRect(rx, Math.max(ry-22, 0), tw, 20);
+        previewCtx.fillStyle = '#fff';
+        previewCtx.fillText(label, rx+5, Math.max(ry-8, 12));
+        previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
+      }
+      previewCtx.restore();
+    }
+  } catch(e) { 
+    console.warn("drawPreviewFrame error", e); 
+  }
+}
+
+async function performObjectDetection() {
+  try {
+    // Create smaller canvas for detection
+    const off = document.createElement('canvas');
+    const D_W = 480;
+    const scale = D_W / canvasDisp.width;
+    off.width = D_W;
+    off.height = Math.floor(canvasDisp.height * scale);
+    const offCtx = off.getContext('2d');
+    offCtx.drawImage(canvasDisp, 0, 0, off.width, off.height);
+    
+    const predictions = await cocoModel.detect(off);
+    const preds = predictions.filter(p => p.score >= SCORE_THRESHOLD);
+    const scaleBack = canvasDisp.width / off.width;
+    
+    latestDetections = preds.map(p => {
+      const [x, y, w, h] = p.bbox;
+      return { 
+        class: p.class, 
+        score: p.score, 
+        bbox: [x*scaleBack, y*scaleBack, w*scaleBack, h*scaleBack] 
+      };
+    });
+
+    updateAlertsList(latestDetections.slice(0, 4));
+    
+    // Check for obstacles ahead
+    checkForObstacles();
+    
+  } catch(e) {
+    console.warn("Object detection error", e);
+  }
+}
+
+function checkForObstacles() {
+  let candidate = null;
+  const fh = canvasDisp.height;
+  const fw = canvasDisp.width;
+  
+  for (const det of latestDetections) {
+    if (!HARMFUL_CLASSES.has(det.class)) continue;
+    
+    const [x, y, w, h] = det.bbox;
+    const cx = x + w/2;
+    const centerDelta = Math.abs(cx - fw/2) / fw;
+    const score = (h / fh) * (1.0 - Math.min(centerDelta / 0.5, 1.0));
+    
+    if (!candidate || score > candidate.score) {
+      candidate = {det, score};
+    }
+  }
+  
+  if (candidate) {
+    const det = candidate.det;
+    const [x, y, w, h] = det.bbox;
+    const cx = x + w/2;
+    const centerDelta = Math.abs(cx - fw/2) / fw;
+    const isAhead = (centerDelta <= CENTER_TOLERANCE) && (h / fh >= 0.06);
+    
+    if (isAhead) {
+      const cls = det.class;
+      const nowTs = Date.now();
+      
+      if (!lastAlertAt[cls] || (nowTs - lastAlertAt[cls] > alertCooldown)) {
+        const ratio = (h / fh);
+        let distMeters = (DISTANCE_ESTIMATE_SCALE / Math.max(ratio, 0.02));
+        distMeters = Math.min(Math.max(distMeters, 0.2), 50.0);
+        
+        if (distMeters <= 5.0) {
+          announce(`Obstacle ahead: ${cls}, approximately ${distMeters.toFixed(1)} meters.`, false);
+          lastAlertAt[cls] = nowTs;
+          log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`);
+        }
+      }
+    }
+  }
+}
+
+function updateAlertsList(dets) {
+  alertsList.innerHTML = '';
+  for (const d of dets) {
+    const li = document.createElement('li');
+    li.textContent = `${d.class} ${(d.score*100).toFixed(0)}%`;
+    alertsList.appendChild(li);
+  }
+  if (dets.length === 0) {
+    const li = document.createElement('li'); 
+    li.textContent = 'No recent alerts'; 
+    alertsList.appendChild(li);
+  }
+}
+
+/* ---------------------------
+   QR Detection with guidance
+   --------------------------- */
+function handleQRDetected(qrData, location) {
+  const cleanData = qrData.trim();
+  log(`QR detected: ${cleanData}`);
+  
+  if (!currentLocation) {
+    // First QR scan - set as current location
+    currentLocation = cleanData;
+    announce(`Location detected: ${cleanData}. Please move closer to the QR code to scan it properly.`, true);
+    
+    // Give guidance to center the QR code
+    if (location && location.topLeftCorner && location.bottomRightCorner) {
+      provideQRGuidance(location);
+    }
+    
+    // After a brief pause, check if user wants to scan
+    setTimeout(() => {
+      checkQRScanCompletion(cleanData, location);
+    }, 2000);
+    
+  } else if (isNavigating) {
+    // During navigation - update current location
+    currentLocation = cleanData;
+    
+    if (cleanData === finalDestination) {
+      // Reached destination!
+      handleDestinationReached();
+    } else {
+      // Intermediate location during navigation
+      handleNavigationProgress(cleanData);
+    }
+  }
+}
+
+function provideQRGuidance(location) {
+  if (!location || !location.topLeftCorner || !location.bottomRightCorner) return;
+  
+  const frameW = canvasDisp.width;
+  const frameH = canvasDisp.height;
+  const centerX = frameW / 2;
+  const centerY = frameH / 2;
+  
+  // Calculate QR code center
+  const qrCenterX = (location.topLeftCorner.x + location.bottomRightCorner.x) / 2;
+  const qrCenterY = (location.topLeftCorner.y + location.bottomRightCorner.y) / 2;
+  
+  // Calculate QR code size
+  const qrWidth = Math.abs(location.bottomRightCorner.x - location.topLeftCorner.x);
+  const qrHeight = Math.abs(location.bottomRightCorner.y - location.topLeftCorner.y);
+  const qrSize = Math.min(qrWidth, qrHeight);
+  
+  // Check if QR is centered and large enough
+  const deltaX = qrCenterX - centerX;
+  const deltaY = qrCenterY - centerY;
+  const tolerance = Math.min(frameW, frameH) * 0.1; // 10% tolerance
+  const minSize = Math.min(frameW, frameH) * 0.15; // Minimum 15% of frame
+  
+  let guidance = [];
+  
+  if (Math.abs(deltaX) > tolerance) {
+    if (deltaX > 0) {
+      guidance.push("move left");
+    } else {
+      guidance.push("move right");
+    }
+  }
+  
+  if (Math.abs(deltaY) > tolerance) {
+    if (deltaY > 0) {
+      guidance.push("move up");
+    } else {
+      guidance.push("move down");
+    }
+  }
+  
+  if (qrSize < minSize) {
+    guidance.push("move closer");
+  } else if (qrSize > minSize * 2) {
+    guidance.push("move back");
+  }
+  
+  if (guidance.length > 0) {
+    const instruction = "To scan properly: " + guidance.join(", ");
+    announce(instruction, false);
+  }
+}
+
+function checkQRScanCompletion(qrData, location) {
+  // Check if QR is well-positioned for scanning
+  if (location && location.topLeftCorner && location.bottomRightCorner) {
+    const frameW = canvasDisp.width;
+    const frameH = canvasDisp.height;
+    const centerX = frameW / 2;
+    const centerY = frameH / 2;
+    
+    const qrCenterX = (location.topLeftCorner.x + location.bottomRightCorner.x) / 2;
+    const qrCenterY = (location.topLeftCorner.y + location.bottomRightCorner.y) / 2;
+    const qrWidth = Math.abs(location.bottomRightCorner.x - location.topLeftCorner.x);
+    const qrHeight = Math.abs(location.bottomRightCorner.y - location.topLeftCorner.y);
+    const qrSize = Math.min(qrWidth, qrHeight);
+    
+    const deltaX = Math.abs(qrCenterX - centerX);
+    const deltaY = Math.abs(qrCenterY - centerY);
+    const tolerance = Math.min(frameW, frameH) * 0.1;
+    const minSize = Math.min(frameW, frameH) * 0.15;
+    
+    // Check if well-positioned
+    const isWellPositioned = deltaX <= tolerance && deltaY <= tolerance && qrSize >= minSize;
+    
+    if (isWellPositioned) {
+      // QR is well-positioned, proceed with destination input
+      stopCamera();
+      announce(`QR code scanned successfully. Current location: ${qrData}`, true);
+      setTimeout(() => {
+        askForDestination();
+      }, 1500);
+    } else {
+      // Continue providing guidance
+      setTimeout(() => {
+        provideQRGuidance(location);
+      }, 2000);
+    }
+  } else {
+    // No location data, assume scan is good enough
+    stopCamera();
+    announce(`QR code scanned successfully. Current location: ${qrData}`, true);
+    setTimeout(() => {
+      askForDestination();
+    }, 1500);
+  }
+}
+
+/* ---------------------------
+   Destination input workflow
+   --------------------------- */
+async function askForDestination() {
+  if (!SR_AVAILABLE) {
+    // Fallback to text input
+    const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
+    const candidateList = candidates.map((p,i)=>`${i+1}. ${p}`).join('\n');
+    announce("Speech recognition not available. Opening text selection.", false);
+    
+    const dest = prompt(`Current: ${currentLocation}\nAvailable destinations:\n${candidateList}\n\nType name or number:`);
+    if (!dest) {
+      announce("No destination selected. Please try again.", false);
+      setTimeout(() => askForDestination(), 1000);
+      return;
+    }
+    
+    let destination = dest.trim();
+    const destNumber = parseInt(destination);
+    if (!isNaN(destNumber) && destNumber >= 1 && destNumber <= candidates.length) {
+      destination = candidates[destNumber - 1];
+    } else {
+      const best = findBestLocationMatch(destination, candidates);
+      if (best) destination = best;
+      else {
+        announce("Destination not found. Please try again.", false);
+        setTimeout(() => askForDestination(), 1000);
+        return;
+      }
+    }
+    
+    confirmDestination(destination);
+    return;
+  }
+
+  let attempts = 0;
+  const maxAttempts = 3;
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    
+    announce("Please say your destination after the beep.", true);
+    await new Promise(r => setTimeout(r, 1000));
+    
+    const interimBox = document.getElementById('listeningBox');
+    interimBox.style.display = 'block';
+    interimBox.textContent = "Listening for destination...";
+    
+    const transcript = await startSpeechRecognition({
+      lang: 'en-US',
+      interim: true,
+      timeout: 15000,
+      onInterim: (t) => { interimBox.textContent = "Hearing: " + t; }
+    });
+    
+    interimBox.textContent = '';
+    
+    if (!transcript) {
+      if (attempts < maxAttempts) {
+        announce("I didn't hear you clearly. Let's try again.", false);
+        continue;
+      } else {
+        announce("Voice input failed. Using text input instead.", false);
+        setTimeout(() => askForDestination(), 500);
+        return;
+      }
+    }
+    
+    log(`Destination heard: ${transcript}`);
+    
+    // Find matching destination
+    const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
+    const bestMatch = findBestLocationMatch(transcript, candidates);
+    
+    if (!bestMatch) {
+      if (attempts < maxAttempts) {
+        announce(`I couldn't find that destination. Available options include: ${candidates.slice(0,3).join(', ')} and others. Please try again.`, false);
+        continue;
+      } else {
+        announce("Destination not found. Using text input instead.", false);
+        setTimeout(() => askForDestination(), 500);
+        return;
+      }
+    }
+    
+    // Confirm the destination
+    const confirmed = await confirmDestination(bestMatch);
+    if (confirmed) {
+      return; // Success!
+    } else {
+      // User said no, try again
+      continue;
+    }
+  }
+  
+  // All attempts failed
+  announce("Voice input unsuccessful. Please try the text input method.", false);
+  setTimeout(() => askForDestination(), 500);
+}
+
+async function confirmDestination(destination) {
+  if (!SR_AVAILABLE) {
+    // Text confirmation
+    const confirmed = confirm(`Navigate to: ${destination}?`);
+    if (confirmed) {
+      finalDestination = destination;
+      startNavigation();
+      return true;
+    } else {
+      announce("Destination cancelled. Please select again.", false);
+      setTimeout(() => askForDestination(), 1000);
+      return false;
+    }
+  }
+
+  let confirmAttempts = 0;
+  const maxConfirmAttempts = 3;
+  
+  while (confirmAttempts < maxConfirmAttempts) {
+    confirmAttempts++;
+    
+    announce(`Did you mean ${destination}? Say yes or no.`, false);
+    await new Promise(r => setTimeout(r, 2000)); // Wait for TTS to finish
+    
+    const interimBox = document.getElementById('listeningBox');
+    interimBox.style.display = 'block';
+    interimBox.textContent = "Listening for yes or no...";
+    
+    const response = await startSpeechRecognition({
+      lang: 'en-US',
+      interim: false,
+      timeout: 10000,
+      onInterim: (t) => { interimBox.textContent = "Hearing: " + t; }
+    });
+    
+    interimBox.textContent = '';
+    
+    if (!response) {
+      if (confirmAttempts < maxConfirmAttempts) {
+        announce("I didn't hear your response. Please say yes or no clearly.", false);
+        continue;
+      } else {
+        return false; // Failed confirmation
+      }
+    }
+    
+    const confirmation = interpretConfirmation(response);
+    log(`Confirmation response: ${response} -> ${confirmation}`);
+    
+    if (confirmation === 'yes') {
+      finalDestination = destination;
+      announce(`Destination confirmed: ${destination}. Starting navigation.`, true);
+      startNavigation();
+      return true;
+    } else if (confirmation === 'no') {
+      announce("Understood. Let's choose a different destination.", false);
+      return false; // User wants to pick again
+    } else {
+      // Ambiguous or unclear response
+      if (confirmAttempts < maxConfirmAttempts) {
+        announce("Please say clearly 'yes' to confirm or 'no' to choose again.", false);
+        continue;
+      } else {
+        announce("Confirmation unclear. Please start over.", false);
+        return false;
+      }
+    }
+  }
+  
+  return false;
+}
+
 function interpretConfirmation(text) {
   if (!text) return 'unknown';
   const s = text.toLowerCase().trim();
   
-  // More flexible patterns for yes/no
   const yesPatterns = ['yes', 'yeah', 'yep', 'yup', 'sure', 'correct', 'right', 'ok', 'okay', 'confirm', 'affirmative'];
   const noPatterns = ['no', 'nope', 'nah', 'wrong', 'incorrect', 'cancel', 'stop'];
   
@@ -1180,393 +960,295 @@ function interpretConfirmation(text) {
   return 'unknown';
 }
 
-async function ask_destination_via_voice(){
-  if (!currentLocation) { announce("No current location. Scan first.", false); return; }
-  if (!SR_AVAILABLE) { announce("Speech recognition not available. Please use text input.", false); show_destination_modal(); return; }
-  let tries = 0;
-  while (tries < 4) {
-    tries++;
-    announce("Please say your destination after the beep.", true);
-    await new Promise(r=>setTimeout(r,700));
-    const interimBox = document.getElementById('listeningBox');
-    interimBox.style.display = 'block'; interimBox.textContent = "Listening… (speak now)";
-    const transcript = await startSpeechRecognition({lang:'en-US', interim:true, timeout:9000, onInterim:(t)=>{ interimBox.textContent = "Listening… " + t; }});
-    interimBox.textContent = '';
-    if (!transcript) {
-      log("No transcript");
-      if (!userGesturePerformed && tries === 1) {
-        announce("I could not access the microphone automatically. If you allow microphone access, press the Voice Destination button once. Then speak after the beep.", false);
-        voiceDestBtn.classList.add('secondary');
-        await new Promise(r=>setTimeout(r,1500));
-        continue;
-      }
-      announce("I didn't catch that. Let's try again.", false);
-      continue;
-    }
-    log("Recognized: " + transcript);
-    const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
-    const bestMatch = findBestLocationMatch(transcript, candidates);
-    if (!bestMatch) { announce("I couldn't find that location. Please say your destination again.", false); continue; }
-
-    // Pure voice confirmation without fallbacks
-    let confirmed = false;
-    let confirmAttempts = 0;
-
-    // Pure voice confirmation with pause before listening
-
-
-    while (confirmAttempts < 3) {
-      confirmAttempts++;
-      
-      // Announce first
-      announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
-      
-      // ✅ Wait for TTS to finish + a small pause
-      await new Promise(r => setTimeout(r, 2000)); 
-      
-      const interimBox = document.getElementById('listeningBox');
-      interimBox.style.display = 'block';
-      interimBox.textContent = "Listening for yes or no...";
-      
-      // Start recognition AFTER voice finished
-      const conf = await startSpeechRecognition({
-        lang:'en-US', 
-        interim:false, 
-        timeout:10000,
-        onInterim: (t) => { interimBox.textContent = "Hearing: " + t; }
-      });
-
-      interimBox.textContent = '';
-
-      if (!conf) {
-        announce("I didn't hear your response. Please say yes or no clearly.", false);
-        continue;
-      }
-
-      const settled = conf.toLowerCase();
-      log("Confirmation recognition: " + settled);
-      const verdict = interpretConfirmation(settled);
-
-      if (verdict === 'yes') {
-        announce(`Confirmed. Starting navigation to ${bestMatch}.`, true);
-        start_navigation(bestMatch); 
-        return;
-      } else if (verdict === 'no') {
-        announce("Okay, let's try again. Please say your destination.", true);
-        // ✅ Restart destination asking immediately
-        await ask_destination_via_voice();  
-        return; // stop current loop
-      } else if (verdict === 'ambiguous') {
-        announce("I heard mixed signals. Please say just 'yes' or 'no'.", false);
-        continue; 
-      } else {
-        announce("I didn't understand. Please say 'yes' to confirm or 'no' to try again.", false);
-        continue;
-      }
-    }
-
-
-    // if we reach here, either user said no or confirmation failed a few times -> try again outer loop
-    if (confirmAttempts >= 3) {
-      announce("Voice confirmation failed. Let's try selecting your destination again.", false);
-    }
-    continue;
-  }
-  announce("Voice input failed repeatedly. Please type destination instead.", false);
-  show_destination_modal();
+function findBestLocationMatch(input, candidates) {
+  const s = input.toLowerCase().trim();
+  
+  // Exact match
+  let match = candidates.find(c => c.toLowerCase() === s);
+  if (match) return match;
+  
+  // Contains match
+  match = candidates.find(c => c.toLowerCase().includes(s) || s.includes(c.toLowerCase()));
+  if (match) return match;
+  
+  // Word-based matching
+  const inputWords = s.split(/\s+/);
+  match = candidates.find(c => {
+    const candidateWords = c.toLowerCase().split(/\s+/);
+    return inputWords.some(iw => candidateWords.some(cw => 
+      iw.includes(cw) || cw.includes(iw) || 
+      (iw.length > 2 && cw.length > 2 && (iw.startsWith(cw.slice(0,3)) || cw.startsWith(iw.slice(0,3))))
+    ));
+  });
+  
+  return match || null;
 }
 
 /* ---------------------------
-   Navigation - Step by step with QR verification
+   Navigation system
    --------------------------- */
-function dijkstra(gr, start, end) {
-  const pq = new MinHeap();
-  pq.push({cost:0,node:start,path:[]});
-  const visited = new Set();
-  while (!pq.empty()) {
-    const item = pq.pop();
-    const {cost, node, path} = item;
-    if (visited.has(node)) continue;
-    const newPath = path.concat([node]);
-    visited.add(node);
-    if (node === end) return {path:newPath, cost};
-    const neighbors = gr[node] || {};
-    for (const nb in neighbors) {
-      if (!visited.has(nb)) pq.push({cost: cost + neighbors[nb], node: nb, path: newPath});
-    }
-  }
-  return {path:[], cost: Infinity};
-}
-class MinHeap {
-  constructor(){ this.a = []; }
-  push(x){ this.a.push(x); this._siftUp(); }
-  pop(){ if(this.a.length===0) return null; const r=this.a[0]; const last=this.a.pop(); if(this.a.length) { this.a[0]=last; this._siftDown(); } return r; }
-  empty(){ return this.a.length===0; }
-  _siftUp(){ let i=this.a.length-1; while(i>0){ let p=Math.floor((i-1)/2); if(this.a[p].cost<=this.a[i].cost) break; [this.a[p],this.a[i]]=[this.a[i],this.a[p]]; i=p; } }
-  _siftDown(){ let i=0; const n=this.a.length; while(true){ let l=i*2+1; let r=i*2+2; let smallest=i; if(l<n && this.a[l].cost < this.a[smallest].cost) smallest=l; if(r<n && this.a[r].cost < this.a[smallest].cost) smallest=r; if(smallest===i) break; [this.a[i],this.a[smallest]]=[this.a[smallest],this.a[i]]; i=smallest; } }
-}
-function get_turn_direction(p1,p2,p3) {
-  const v1 = [p2[0]-p1[0], p2[1]-p1[1]];
-  const v2 = [p3[0]-p2[0], p3[1]-p2[1]];
-  const raw = (Math.atan2(v2[1], v2[0]) - Math.atan2(v1[1], v1[0])) * 180/Math.PI;
-  const angle = (raw + 360) % 360;
-  if (angle < 45 || angle > 315) return "Move straight";
-  if (angle >= 45 && angle < 135) return "Turn right";
-  if (angle >= 135 && angle < 225) return "Turn back";
-  return "Turn left";
-}
-function get_initial_direction_simple(p1,p2) {
-  const dx = p2[0]-p1[0], dy = p2[1]-p1[1];
-  const angle = (Math.atan2(dy,dx) * 180/Math.PI + 360) % 360;
-  if (angle >= 315 || angle < 45) return "Move straight";
-  if (angle >= 45 && angle < 135) return "Turn right";
-  if (angle >= 135 && angle < 225) return "Turn back";
-  return "Turn left";
-}
-
-function start_navigation(destination) {
-  if (!currentLocation) { announce("No current location. Scan QR codes first.", false); return; }
-  if (!destination) { announce("No destination selected.", false); return; }
-  const res = dijkstra(graph, currentLocation, destination);
-  if (!res.path.length || res.cost === Infinity) { announce("No path found to that destination.", false); alert("Routing error: no path found."); return; }
-  
-  // Initialize navigation state
-  navigationState.active = true;
-  navigationState.path = res.path;
-  navigationState.currentStepIndex = 0;
-  navigationState.waitingForQR = false;
-  navigationState.expectedLocation = null;
-  
-  announce(`Navigation started to ${destination}. Total distance ${Math.round(res.cost)} meters.`, true);
-  
-  // Give first instruction
-  setTimeout(() => {
-    giveCurrentInstruction();
-  }, 1500);
-}
-
-function giveCurrentInstruction() {
-  if (!navigationState.active) return;
-  
-  const path = navigationState.path;
-  const idx = navigationState.currentStepIndex;
-  
-  // Check if we've reached destination
-  if (idx >= path.length - 1) {
-    finishNavigation();
+function startNavigation() {
+  if (!currentLocation || !finalDestination) {
+    announce("Cannot start navigation. Missing location information.", true);
     return;
   }
   
-  const current = path[idx];
-  const next = path[idx + 1];
-  const distance = (graph[current] && graph[current][next]) ? graph[current][next] : 0;
-  const totalSteps = path.length - 1;
-  const stepNum = idx + 1;
-  
-  let instruction;
-  if (idx === 0) {
-    instruction = `From ${current}, ${get_initial_direction_simple(node_coords[current], node_coords[next])} towards ${next}`;
-  } else {
-    const prev = path[idx - 1];
-    instruction = `At ${current}, ${get_turn_direction(node_coords[prev], node_coords[current], node_coords[next])} towards ${next}`;
+  // Calculate route
+  const route = dijkstra(graph, currentLocation, finalDestination);
+  if (!route.path.length || route.cost === Infinity) {
+    announce("No route found to that destination. Please select a different destination.", true);
+    setTimeout(() => askForDestination(), 2000);
+    return;
   }
   
-  const stepInfo = `Step ${stepNum} of ${totalSteps}. ${instruction}. Distance ${distance.toFixed(0)} meters.`;
+  isNavigating = true;
+  cancelOverlay.style.display = 'block';
   
-  announce(stepInfo, true);
-  log(`🗺️ Navigation Step ${stepNum}/${totalSteps}: ${instruction} (${distance.toFixed(0)}m)`);
-  overlayText.textContent = `Step ${stepNum}/${totalSteps}: Walk to ${next}`;
+  announce(`Navigation started to ${finalDestination}. Total distance: ${Math.round(route.cost)} meters. You can tap Cancel Navigation to stop at any time.`, true);
   
-  // Now wait for voice command to proceed
-  setTimeout(() => {
-    waitForNextCommand(next);
-  }, 3000);
-}
-
-async function waitForNextCommand(expectedNext) {
-  if (!navigationState.active) return;
-  
-  announce(`Say 'next' when you reach ${expectedNext}, or 'cancel' to stop navigation.`, false);
-  
-  // Wait indefinitely for user response with longer timeout periods
-  while (navigationState.active) {
-    const interimBox = document.getElementById('listeningBox');
-    interimBox.style.display = 'block';
-    interimBox.textContent = "Listening for 'next' or 'cancel'...";
-    
-    const response = await startSpeechRecognition({
-      lang: 'en-US', 
-      interim: true, 
-      timeout: 30000, // Increased to 30 seconds
-      onInterim: (t) => { interimBox.textContent = "Listening... " + t; }
-    });
-    
-    interimBox.textContent = '';
-    
-    if (!response) {
-      // Just quietly restart listening without nagging
-      interimBox.style.display = 'block';
-      interimBox.textContent = "Waiting... (say 'next' when ready)";
-      await new Promise(r => setTimeout(r, 2000)); // Brief pause
-      continue; // Restart listening loop
+  // Start camera for navigation
+  setTimeout(async () => {
+    const started = await startCamera();
+    if (started) {
+      announce("Camera ready. Continue scanning QR codes as you move. I will guide you along the route.", false);
+      
+      // Give initial navigation instruction
+      setTimeout(() => {
+        provideNavigationGuidance();
+      }, 2000);
     }
-    
-    const command = response.toLowerCase().trim();
-    log(`Navigation command heard: "${command}"`);
-    
-    if (command.includes('next') || command.includes('ready') || command.includes('continue') || command.includes('arrived')) {
-      startQRVerification(expectedNext);
-      return;
-    } else if (command.includes('cancel') || command.includes('stop') || command.includes('quit')) {
-      cancelNavigation();
-      return;
-    } else if (command.includes('repeat') || command.includes('again')) {
-      giveCurrentInstruction();
-      return;
-    } else {
-      // Don't nag - just show visual feedback and continue listening
-      interimBox.style.display = 'block';
-      interimBox.textContent = "Didn't understand - waiting for 'next' or 'cancel'...";
-      await new Promise(r => setTimeout(r, 1500));
-      continue;
-    }
-  }
+  }, 1500);
 }
 
-function startQRVerification(expectedLocation) {
-  if (!navigationState.active) return;
+function provideNavigationGuidance() {
+  if (!isNavigating || !currentLocation || !finalDestination) return;
   
-  navigationState.waitingForQR = true;
-  navigationState.expectedLocation = expectedLocation;
-  
-  announce(`Please scan the QR code at ${expectedLocation} to verify your location.`, true);
-  overlayText.textContent = `Scan QR at ${expectedLocation} to continue`;
-  
-  // Start camera if not running
-  if (!scannerRunning) {
-    log("🎥 Starting camera for QR verification...");
-    setTimeout(() => {
-      startCamera();
-    }, 1000);
+  if (currentLocation === finalDestination) {
+    handleDestinationReached();
+    return;
   }
+  
+  // Calculate next step from current location
+  const route = dijkstra(graph, currentLocation, finalDestination);
+  if (!route.path.length || route.path.length < 2) {
+    announce("Route calculation error. Please scan a QR code to update your location.", false);
+    return;
+  }
+  
+  const nextLocation = route.path[1]; // Next step in the route
+  const distance = graph[currentLocation] && graph[currentLocation][nextLocation] 
+    ? graph[currentLocation][nextLocation] 
+    : 0;
+  
+  const direction = getDirection(currentLocation, nextLocation);
+  const instruction = `From ${currentLocation}, ${direction} towards ${nextLocation}. Distance: ${distance.toFixed(0)} meters.`;
+  
+  announce(instruction, false);
+  log(`Navigation: ${instruction}`);
 }
 
-function handleNavigationQRScan(scannedLocation) {
-  if (!navigationState.active || !navigationState.waitingForQR) return false;
+function getDirection(from, to) {
+  if (!node_coords[from] || !node_coords[to]) return "proceed";
   
-  const expected = navigationState.expectedLocation;
-  const scanned = scannedLocation.trim();
+  const fromCoords = node_coords[from];
+  const toCoords = node_coords[to];
+  const dx = toCoords[0] - fromCoords[0];
+  const dy = toCoords[1] - fromCoords[1];
   
-  log(`🔍 QR Verification: Expected "${expected}", Scanned "${scanned}"`);
+  const angle = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
   
-  if (scanned === expected || scanned.toLowerCase() === expected.toLowerCase()) {
-    // Correct location scanned
-    announce(`Verified: You are at ${scanned}.`, true);
-    navigationState.waitingForQR = false;
-    navigationState.currentStepIndex++;
-    currentLocation = scanned;
-    
-    // Stop camera briefly
-    stopCamera();
-    
-    // Continue to next step after brief pause
-    setTimeout(() => {
-      giveCurrentInstruction();
-    }, 2000);
-    
-    return true;
-  } else {
-    // Wrong location scanned
-    announce(`This is ${scanned}, but I expected ${expected}. Please find ${expected} and scan its QR code.`, false);
-    return false;
-  }
+  if (angle >= 315 || angle < 45) return "head east";
+  if (angle >= 45 && angle < 135) return "head south";
+  if (angle >= 135 && angle < 225) return "head west";
+  return "head north";
 }
 
-function finishNavigation() {
-  const finalDestination = navigationState.path[navigationState.path.length - 1];
-  navigationState.active = false;
-  navigationState.waitingForQR = false;
+function handleNavigationProgress(newLocation) {
+  announce(`Location updated: ${newLocation}`, false);
+  log(`Navigation progress: moved to ${newLocation}`);
   
-  // Set flag to prevent asking for new destination
-  navigationJustCompleted = true;
+  // Update current location
+  currentLocation = newLocation;
   
-  announce(`You have arrived at your destination: ${finalDestination}. Navigation complete!`, true);
-  overlayText.textContent = `Arrived at ${finalDestination} - Navigation Complete`;
-  
-  log(`🎯 Navigation completed to ${finalDestination}`);
-  
-  // Clear navigation target
-  currentNavigationTarget = null;
-  
-  // Vibrate arrival pattern
-  vibrateArrival();
-  
-  // Reset the flag after 3 seconds to allow future navigation
+  // Provide next guidance
   setTimeout(() => {
-    navigationJustCompleted = false;
-    announce("Ready for new navigation if needed.", false);
+    provideNavigationGuidance();
+  }, 1500);
+}
+
+function handleDestinationReached() {
+  isNavigating = false;
+  cancelOverlay.style.display = 'none';
+  stopCamera();
+  
+  announce(`Congratulations! You have successfully reached your destination: ${finalDestination}. Navigation complete.`, true);
+  
+  // Vibration pattern for success
+  if ('vibrate' in navigator) {
+    try {
+      navigator.vibrate([200, 100, 200, 100, 300]);
+    } catch(e) {}
+  }
+  
+  log(`Navigation completed successfully to ${finalDestination}`);
+  
+  // Reset for next navigation
+  setTimeout(() => {
+    currentLocation = finalDestination;
+    finalDestination = null;
+    announce("Ready for next navigation. Press Start Navigation to begin again.", false);
+    overlayText.textContent = "Navigation complete. Ready for next journey.";
   }, 3000);
 }
 
 function cancelNavigation() {
-  navigationState.active = false;
-  navigationState.waitingForQR = false;
-  currentNavigationTarget = null;
+  isNavigating = false;
+  cancelOverlay.style.display = 'none';
+  finalDestination = null;
   
+  stopCamera();
   announce("Navigation cancelled.", true);
-  overlayText.textContent = "Navigation cancelled";
-  log("❌ Navigation cancelled by user");
   
-  if (scannerRunning) {
-    stopCamera();
+  log("Navigation cancelled by user");
+  overlayText.textContent = "Navigation cancelled. Press Start Navigation to begin again.";
+}
+
+/* ---------------------------
+   Pathfinding (Dijkstra)
+   --------------------------- */
+function dijkstra(gr, start, end) {
+  const pq = new MinHeap();
+  pq.push({cost: 0, node: start, path: []});
+  const visited = new Set();
+  
+  while (!pq.empty()) {
+    const item = pq.pop();
+    const {cost, node, path} = item;
+    
+    if (visited.has(node)) continue;
+    const newPath = path.concat([node]);
+    visited.add(node);
+    
+    if (node === end) return {path: newPath, cost};
+    
+    const neighbors = gr[node] || {};
+    for (const nb in neighbors) {
+      if (!visited.has(nb)) {
+        pq.push({
+          cost: cost + neighbors[nb], 
+          node: nb, 
+          path: newPath
+        });
+      }
+    }
+  }
+  
+  return {path: [], cost: Infinity};
+}
+
+class MinHeap {
+  constructor() { this.a = []; }
+  push(x) { this.a.push(x); this._siftUp(); }
+  pop() { 
+    if(this.a.length === 0) return null; 
+    const r = this.a[0]; 
+    const last = this.a.pop(); 
+    if(this.a.length) { this.a[0] = last; this._siftDown(); } 
+    return r; 
+  }
+  empty() { return this.a.length === 0; }
+  _siftUp() { 
+    let i = this.a.length - 1; 
+    while(i > 0) { 
+      let p = Math.floor((i-1)/2); 
+      if(this.a[p].cost <= this.a[i].cost) break; 
+      [this.a[p], this.a[i]] = [this.a[i], this.a[p]]; 
+      i = p; 
+    } 
+  }
+  _siftDown() { 
+    let i = 0; 
+    const n = this.a.length; 
+    while(true) { 
+      let l = i*2 + 1; 
+      let r = i*2 + 2; 
+      let smallest = i; 
+      if(l < n && this.a[l].cost < this.a[smallest].cost) smallest = l; 
+      if(r < n && this.a[r].cost < this.a[smallest].cost) smallest = r; 
+      if(smallest === i) break; 
+      [this.a[i], this.a[smallest]] = [this.a[smallest], this.a[i]]; 
+      i = smallest; 
+    } 
   }
 }
 
 /* ---------------------------
-   UI handlers & cleanup
+   Event handlers
    --------------------------- */
-startBtn.onclick = async () => { if (scannerRunning) { announce("Scanner already running.", false); return; } userGesturePerformed = true; await startCamera(); };
-stopBtn.onclick = () => { 
-  stopCamera(); 
-  if (navigationState.active) {
-    cancelNavigation();
+startBtn.onclick = async () => {
+  if (scannerRunning) {
+    announce("Scanner already running.", false);
+    return;
+  }
+  
+  userGesturePerformed = true;
+  overlayText.textContent = "Starting camera...";
+  
+  const started = await startCamera();
+  if (started) {
+    announce("Camera started. Point at any QR code to scan your current location.", true);
+    overlayText.textContent = "Point camera at QR code to scan your location";
   }
 };
-restartBtn.onclick = () => { 
-  if (navigationState.active) {
-    cancelNavigation();
-  }
-  stopCamera(); 
-  foundResults.clear(); 
-  actionsTriggered=false; 
-  scanStartTime = Date.now(); 
-  setTimeout(()=>{ startBtn.click(); },300); 
-};
-voiceDestBtn.onclick = () => { userGesturePerformed = true; ask_destination_via_voice(); };
-mapBtn.onclick = () => { drawMap(); mapModal.style.display = 'flex'; announce("Map opened. Close when ready.", false); };
-closeMap.onclick = () => { mapModal.style.display = 'none'; announce("Map closed.", false); };
 
+cancelBtn.onclick = () => {
+  cancelNavigation();
+};
+
+// Keyboard shortcuts
 window.addEventListener('keydown', (e) => {
-  if (e.key === 's' || e.key === 'S') { startBtn.click(); }
-  if (e.key === 'v' || e.key === 'V') { voiceDestBtn.click(); }
-  if (e.key === 'm' || e.key === 'M') { mapBtn.click(); }
-  if (e.key === 'r' || e.key === 'R') { restartBtn.click(); }
-  if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
+  if (e.key === 's' || e.key === 'S') {
+    startBtn.click();
+  }
+  if (e.key === 'c' || e.key === 'C') {
+    if (isNavigating) cancelBtn.click();
+  }
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (isNavigating) {
+      cancelBtn.click();
+    } else {
+      startBtn.click();
+    }
+  }
 });
 
-function onOpenCvReady(){ cvReady = true; log("OpenCV ready"); announce("OpenCV loaded - improved color detection available.", false); }
+/* ---------------------------
+   Initialization
+   --------------------------- */
+function onOpenCvReady() { 
+  cvReady = true; 
+  log("OpenCV ready"); 
+}
+
 if (typeof cv !== 'undefined') {
   if (cv && cv.Mat) onOpenCvReady();
   else cv['onRuntimeInitialized'] = onOpenCvReady;
 } else {
-  setTimeout(()=>{ if (!cvReady) announce("OpenCV not loaded. Falling back to JS color detection.", false); }, 7000);
+  setTimeout(() => { 
+    if (!cvReady) log("OpenCV not loaded - using basic QR detection"); 
+  }, 5000);
 }
 
-window.addEventListener('beforeunload', ()=>{ if (stream) stream.getTracks().forEach(t=>t.stop()); speechSynthesis.cancel(); });
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => { 
+  if (stream) stream.getTracks().forEach(t => t.stop()); 
+  speechSynthesis.cancel(); 
+});
 
-announce("Ready. Start Scan to begin scanning for three color QR codes. The app will listen automatically when needed.", false);
+// Initial announcement
+announce("VI Navigation ready. Press Start Navigation to begin scanning for your location.", false);
 log("App initialized. Speech recognition available: " + (SR_AVAILABLE ? 'yes' : 'no'));
-log("Scan sequence: Red (location) + Green (map) + Blue (accessibility)");
 </script>
 </body>
 </html>
