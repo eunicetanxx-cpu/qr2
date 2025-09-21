@@ -785,11 +785,14 @@ function updateAlertsList(dets) {
   if (dets.length === 0) { const li = document.createElement('li'); li.textContent = 'No recent alerts'; alertsList.appendChild(li); }
 }
 
-/* ---------- Handle decoded QR logic (updated) ---------- */
+/* ---------- Handle decoded QR logic ---------- */
+/* UPDATED: when first location QR is seen -> stop camera and ask user for destination.
+   During navigation, arrival is confirmed by scanning the destination QR, camera stops and non-overridable arrival TTS plays.
+*/
 function handleDecoded(decoded, color) {
   const decodedClean = decoded.trim();
 
-  // If navigation is active and we have a currentNavigationTarget to check for arrival
+  // Arrival confirmation during navigation (destination QR scanned)
   if (navigationActive && finalDestination && currentNavigationTarget) {
     const target = (currentNavigationTarget || "").toLowerCase();
     const detected = decodedClean.toLowerCase();
@@ -806,6 +809,7 @@ function handleDecoded(decoded, color) {
       setTimeout(()=>{ announce(`Navigation completed. You are now at ${decodedClean}.`, true); }, 1800);
       return;
     } else {
+      // It's a different QR encountered en route (checkpoint)
       if (decodedClean !== currentLocation) {
         currentLocation = decodedClean;
         log("Navigation checkpoint: " + decodedClean);
@@ -815,36 +819,33 @@ function handleDecoded(decoded, color) {
     }
   }
 
-  // NEW BEHAVIOUR:
-  // If the initial location hasn't been set, treat the first scanned location as the initial location,
-  // stop the camera immediately and then ask the user for their final destination.
+  // FIRST-TIME LOCATION SCAN: stop the camera and ask for destination
   if (!isFirstLocationSet) {
     if (decodedClean !== currentLocation) {
       currentLocation = decodedClean;
       isFirstLocationSet = true;
       log("Initial location set: " + decodedClean);
+      // announce location (non-blocking)
       announce(`Current location detected: ${decodedClean}`, false);
-
-      // Stop the camera immediately so we don't keep scanning while asking destination
+      // Immediately stop the camera so we can start voice recognition without continuous scanning noise/overlap
       stopCamera();
 
-      // Give TTS a short moment to finish, then ask for destination via voice (or fallback).
-      // We use a small timeout instead of awaiting here because processFrame calls handleDecoded from a timer.
-      setTimeout(() => {
+      // Wait a short time so TTS settles, then ask for destination (voice-first)
+      setTimeout(async () => {
         if (SR_AVAILABLE) {
-          // ask via voice (ask_destination_via_voice internally waits for TTS to finish before SR)
+          announce("I will listen for your final destination now.", true);
+          // Ensure any short TTS finishes so SR doesn't get speech interference
+          await waitForSpeechEnd(1600);
           ask_destination_via_voice();
         } else {
-          // fallback to modal text selection
           show_destination_modal();
         }
       }, 700);
-
     }
     return;
   }
 
-  // Otherwise update currentLocation when scanning different QR codes (checkpoints)
+  // Subsequent scans update currentLocation (checkpoints)
   if (decodedClean !== currentLocation) {
     currentLocation = decodedClean;
     log("Location updated: " + decodedClean);
@@ -852,26 +853,7 @@ function handleDecoded(decoded, color) {
   }
 }
 
-  // If the initial location hasn't been set, treat the first scanned location as the initial location.
-  if (!isFirstLocationSet) {
-    if (decodedClean !== currentLocation) {
-      currentLocation = decodedClean;
-      isFirstLocationSet = true;
-      log("Initial location set: " + decodedClean);
-      announce(`Current location detected: ${decodedClean}`, false);
-    }
-    return;
-  }
-
-  // Otherwise update currentLocation when scanning different QR codes (checkpoints)
-  if (decodedClean !== currentLocation) {
-    currentLocation = decodedClean;
-    log("Location updated: " + decodedClean);
-    announce(`Location updated: ${decodedClean}`, false);
-  }
-}
-
-/* ---------- Trigger flow once all three scanned ---------- */
+/* ---------- Trigger flow once all three scanned (kept but not required for basic flow) ---------- */
 function triggerAllActionsOnce() {
   if (actionsTriggered) return;
   const requiredColors = ['red','green','blue'];
@@ -1294,9 +1276,9 @@ else setTimeout(()=>{ if (!cvReady) backendLog("OpenCV not loaded. Falling back 
 window.addEventListener('beforeunload', () => { if (stream) stream.getTracks().forEach(t => t.stop()); speechSynthesis.cancel(); });
 
 /* ---------- Init ---------- */
-announce("Ready. Start Scan to begin scanning for three color QR codes. The app will listen automatically when needed.", false);
+announce("Ready. Start Scan to begin scanning for QR. Point at a QR to establish your current location.", false);
 log("App initialized. Speech recognition available: " + (SR_AVAILABLE ? 'yes' : 'no'));
-log("Behavior: destination set once, camera kept running during navigation for obstacle detection, arrival announcement is protected.");
+log("Behavior: scan initial QR -> stop camera -> voice destination -> navigation starts -> arrival confirmed by QR.");
 </script>
 </body>
 </html>
