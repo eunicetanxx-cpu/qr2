@@ -5,26 +5,95 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>VI-Friendly Indoor Navigation (Color QR + Obstacle Alerts)</title>
   <style>
-    :root{--bg:#000;--card:#0b1220;--accent:#ffd54f;--accent-2:#00e676;--text:#fff;--muted:#9aa8b2;--btn-h:64px;--btn-font:20px}
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,#05070a 0%, #0b0f14 100%);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial}
-    .app{max-width:980px;margin:12px auto;padding:18px;padding-bottom:200px;background:linear-gradient(180deg,#071018 0,#07121a 100%);border-radius:14px;box-shadow:0 8px 36px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.02)}
-    header{display:flex;gap:12px;align-items:center}h1{font-size:24px;margin:0;color:var(--accent)}.subtitle{color:var(--muted);font-size:14px;margin-top:4px}
-    .controls{margin:14px 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center}.btn{background:var(--accent);color:#000;border:none;padding:12px 18px;border-radius:12px;font-size:var(--btn-font);height:var(--btn-h);min-width:150px;cursor:pointer}
-    .btn.secondary{background:transparent;color:var(--text);border:2px solid rgba(255,255,255,0.06)}.select{font-size:18px;padding:12px;border-radius:12px;height:var(--btn-h);background:#07141a;color:var(--text);border:1px solid rgba(255,255,255,0.03);min-width:140px}
-    .btn.green{background:#4caf50;color:#fff}.btn.red{background:#f44336;color:#fff}.btn.yellow{background:#ffeb3b;color:#000}.btn.grey{background:#9e9e9e;color:#fff}
-    .main-controls{bottom:0;left:0;right:0;background:#071018;padding:14px;display:flex;flex-direction:column;gap:12px;z-index:1000;box-shadow:0 -4px 12px rgba(0,0,0,0.6)}
-    .statusBox{margin-top:12px;padding:14px;background:linear-gradient(180deg,#071018,#06121a);border-radius:12px;border:1px solid rgba(0,255,136,0.03);min-height:100px;display:flex;gap:12px;align-items:flex-start}
-    #overlayText{font-weight:800;font-size:20px;color:var(--text);margin-bottom:6px}#srAnnounce{font-size:17px;color:var(--muted);margin-top:6px}#listeningBox{margin-top:10px;font-size:18px;color:#ffb74d;min-height:22px}
-    .scan-progress{margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}.progress-pill{padding:10px 14px;border-radius:999px;background:#071018;color:var(--muted);font-size:18px;border:1px solid rgba(255,255,255,0.02);min-width:200px;text-align:center}.progress-pill.found{background:var(--accent-2);color:#000;font-weight:800;border:2px solid rgba(0,64,0,0.7)}
-    #previewWrap{display:flex;gap:12px;margin-top:14px;align-items:flex-start;justify-content:center}#previewCanvas{height:auto;background:#000;border-radius:10px;border:2px solid #0b1b2a;object-fit:cover;display:block;margin:0 auto}
-    .alerts{padding:12px;border-radius:10px;background:#061217;border:1px solid rgba(255,255,255,0.02);min-height:100px;color:var(--muted)}.alerts h4{margin:0 0 6px 0;color:var(--accent);font-size:16px}.alerts ul{margin:0;padding-left:18px;font-size:16px;color:var(--muted)}.alerts li{margin-bottom:6px}
-    #log{margin-top:12px;background:#02060a;color:#b8d3de;padding:12px;border-radius:10px;height:160px;overflow:auto;font-size:14px;border:1px solid rgba(255,255,255,0.02)}
-    .map-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);z-index:999}.map-modal .box{background:#071018;padding:14px;max-width:900px;width:95%;max-height:85%;overflow:auto;border-radius:10px;border:2px solid rgba(255,255,255,0.02);color:#fff}
-    #mapCanvas{width:100%;height:auto;border-radius:6px;background:#fff;display:block}footer{margin-top:14px;color:var(--muted);font-size:13px;text-align:center}
-    .visually-hidden{position:absolute!important;height:1px;width:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}
-    @media(max-width:760px){#previewCanvas{width:100%;height:260px}.controls{gap:8px}.btn{min-width:120px;font-size:18px;height:56px}}
+    :root{
+      --bg:#000; --card:#0b1220; --accent:#ffd54f; --accent-2:#00e676; --text:#fff;
+      --muted:#9aa8b2;
+      --btn-h:64px; --btn-font:20px;
+    }
+    html,body{height:100%; margin:0; background:linear-gradient(180deg,#05070a 0%, #0b0f14 100%); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; -webkit-font-smoothing:antialiased;}
+    .app {
+      max-width: 980px;
+      margin: 12px auto;
+      padding: 18px;
+      padding-bottom: 200px;
+      background: linear-gradient(180deg, #071018 0, #07121a 100%);
+      border-radius: 14px;
+      box-shadow: 0 8px 36px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.02);
+    }
+    header { display:flex; gap:12px; align-items:center; }
+    h1 { font-size:24px; margin:0; color:var(--accent); letter-spacing:0.6px; }
+    .subtitle { color: var(--muted); font-size:14px; margin-top:4px; }
+
+    .controls { margin:14px 0; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .btn { background:var(--accent); color:#000; border:none; padding:12px 18px; border-radius:12px; font-size:var(--btn-font); height:var(--btn-h); min-width:150px; cursor:pointer; box-shadow:0 8px 18px rgba(0,0,0,0.5); }
+    .btn.secondary { background:transparent; color:var(--text); border:2px solid rgba(255,255,255,0.06); }
+    .btn.ghost { background:transparent; color:var(--accent); border:2px dashed rgba(255,213,79,0.18); }
+    .btn:focus { outline:4px solid rgba(255,213,79,0.25); outline-offset:3px; }
+    .select { font-size:18px; padding:12px; border-radius:12px; height:var(--btn-h); background:#07141a; color:var(--text); border:1px solid rgba(255,255,255,0.03); min-width:140px; }
+    .btn.green { background:#4caf50; color:#fff; }
+    .btn.red { background:#f44336; color:#fff; }
+    .btn.yellow { background:#ffeb3b; color:#000; }
+    .btn.grey { background:#9e9e9e; color:#fff; }
+
+    .main-controls {
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #071018;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 1000;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.6);
+    }
+    .main-controls .controls-row { display: flex; justify-content: space-between; gap: 12px; }
+    .main-controls .controls-row:last-child { justify-content: center; }
+
+    .statusBox { margin-top:12px; padding:14px; background:linear-gradient(180deg,#071018,#06121a); border-radius:12px; border:1px solid rgba(0,255,136,0.03); min-height:100px; display:flex; gap:12px; align-items:flex-start; }
+    #leftStatus { flex:1; }
+    #overlayText { font-weight:800; font-size:20px; color:var(--text); margin-bottom:6px; }
+    #srAnnounce { font-size:17px; color:var(--muted); margin-top:6px; }
+    #listeningBox { margin-top:10px; font-size:18px; color:#ffb74d; min-height:22px; }
+
+    .scan-progress { margin-top:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .progress-pill { padding:10px 14px; border-radius:999px; background:#071018; color:var(--muted); font-size:18px; border:1px solid rgba(255,255,255,0.02); min-width:200px; text-align:center; }
+    .progress-pill.found { background:var(--accent-2); color:#000; font-weight:800; border:2px solid rgba(0,64,0,0.7); }
+
+    #previewWrap { display:flex; gap:12px; margin-top:14px; align-items:flex-start; justify-content:center; }
+    #previewCanvas {
+      height: auto;
+      background: #000;
+      border-radius: 10px;
+      border: 2px solid #0b1b2a;
+      object-fit: cover;
+      display:block;
+      margin: 0 auto;
+    }
+
+    .alerts { padding:12px; border-radius:10px; background:#061217; border:1px solid rgba(255,255,255,0.02); min-height:100px; color:var(--muted); }
+    .alerts h4 { margin:0 0 6px 0; color:var(--accent); font-size:16px; }
+    .alerts ul { margin:0; padding-left:18px; font-size:16px; color:var(--muted); }
+    .alerts li { margin-bottom:6px; }
+
+    #log { margin-top:12px; background:#02060a; color:#b8d3de; padding:12px; border-radius:10px; height:160px; overflow:auto; font-size:14px; border:1px solid rgba(255,255,255,0.02); }
+
+    .map-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.75); z-index:999; }
+    .map-modal .box { background:#071018; padding:14px; max-width:900px; width:95%; max-height:85%; overflow:auto; border-radius:10px; border:2px solid rgba(255,255,255,0.02); color:#fff; }
+    #mapCanvas { width:100%; height:auto; border-radius:6px; background:#fff; display:block; }
+
+    footer { margin-top:14px; color:var(--muted); font-size:13px; text-align:center; }
+
+    .visually-hidden { position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
+    @media (max-width:760px){
+      #previewCanvas { width:100%; height:260px; }
+      .controls { gap:8px; }
+      .btn { min-width:120px; font-size:18px; height:56px; }
+    }
   </style>
 
+  <!-- libs -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
@@ -44,7 +113,7 @@
       <option>Any</option><option>Red</option><option>Green</option><option>Blue</option>
     </select>
 
-    <label style="display:flex;align-items:center;gap:8px;margin-left:6px;color:var(--muted);font-size:16px;">
+    <label style="display:flex; align-items:center; gap:8px; margin-left:6px; color:var(--muted); font-size:16px;">
       <input type="checkbox" id="enableDetect" checked aria-label="Enable object detection"> Enable Object Detection
     </label>
    </div>
@@ -79,7 +148,7 @@
      <div class="box">
        <h3 id="mapTitle">Map Preview</h3>
        <canvas id="mapCanvas" width="900" height="600"></canvas>
-       <div style="text-align:right;margin-top:8px;">
+       <div style="text-align:right; margin-top:8px;">
          <button id="closeMap" class="btn secondary" aria-label="Close map">Close</button>
        </div>
      </div>
@@ -102,6 +171,7 @@
   </div>
 
 <script>
+/* small helpers & DOM */
 const overlayText = document.getElementById('overlayText');
 const srAnnounce = document.getElementById('srAnnounce');
 const previewCanvas = document.getElementById('previewCanvas');
@@ -126,6 +196,7 @@ const alertsList = document.getElementById('alertsList');
 
 const log = (m) => { console.log(m); const t = new Date().toLocaleTimeString(); logEl.innerText += `[${t}] ${m}\n`; logEl.scrollTop = logEl.scrollHeight; };
 
+/* state */
 const SCAN_SIZE = 360;
 let scanBox = { x: 0, y: 0, size: SCAN_SIZE };
 let cvReady = false, animationFrameId = null, stream = null, scannerRunning = false;
@@ -139,17 +210,157 @@ const alertCooldown = 3000; const lastAlertAt = {};
 const HARMFUL_CLASSES = new Set(['person','chair','couch','bench','dining table','stop sign','tv','suitcase','backpack','bed','toilet']);
 
 let userGesturePerformed = false;
-let arrivedFinal = false;
 
-let navigationState = { active: false, path: [], currentStepIndex: 0, waitingForQR: false, expectedLocation: null };
+// Navigation state for step-by-step system
+let navigationState = {
+  active: false,
+  path: [],
+  currentStepIndex: 0,
+  waitingForQR: false,
+  expectedLocation: null
+};
+
 let navigationJustCompleted = false;
 
-const TTS = { queue: [], speaking: false, speak(text, interrupt=false) { if(!text) return; if(interrupt){ this.queue=[]; if (speechSynthesis.speaking) speechSynthesis.cancel(); } this.queue.push(text); this._maybeSpeak(); }, _maybeSpeak() { if(this.speaking) return; const next = this.queue.shift(); if(!next) return; this.speaking = true; const utt = new SpeechSynthesisUtterance(next); utt.rate = 1.0; utt.onend = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); }; utt.onerror = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); }; speechSynthesis.speak(utt); } };
-function announce(text, interrupt=false) { overlayText.textContent = text; srAnnounce.textContent = text; TTS.speak(text, interrupt); log(`[ANNOUNCE] ${text}`); }
+/* TTS simple queue */
+const TTS = {
+  queue: [], speaking: false,
+  speak(text, interrupt=false) {
+    if(!text) return;
+    if(interrupt){ this.queue=[]; if (speechSynthesis.speaking) speechSynthesis.cancel(); }
+    this.queue.push(text); this._maybeSpeak();
+  },
+  _maybeSpeak() {
+    if(this.speaking) return;
+    const next = this.queue.shift();
+    if(!next) return;
+    this.speaking = true;
+    const utt = new SpeechSynthesisUtterance(next); utt.rate = 1.0;
+    utt.onend = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
+    utt.onerror = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
+    speechSynthesis.speak(utt);
+  }
+};
+function announce(text, interrupt=false) {
+  overlayText.textContent = text;
+  srAnnounce.textContent = text;
+  TTS.speak(text, interrupt);
+  log(`[ANNOUNCE] ${text}`);
+}
 
+/* NEW: speakAndWait - returns a Promise resolved when TTS ends */
+function speakAndWait(text, interrupt=false) {
+  return new Promise(resolve => {
+    try {
+      if (interrupt && speechSynthesis.speaking) speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.rate = 1.0;
+      utt.onend = () => { log(`[TTS END] ${text}`); resolve(true); };
+      utt.onerror = () => { log(`[TTS ERROR] ${text}`); resolve(false); };
+      speechSynthesis.speak(utt);
+      log(`[TTS START] ${text}`);
+    } catch (e) {
+      log("speakAndWait exception: " + e);
+      resolve(false);
+    }
+  });
+}
+
+/* NEW: small beep cue so user knows when to speak */
+function playBeep() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 900;
+    g.gain.value = 0.04;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    setTimeout(()=>{ try{ o.stop(); ctx.close(); }catch(e){} }, 140);
+  } catch (e) {
+    // ignore if audio not available
+  }
+}
+
+/*  Speech recognition availability */
 let SR_AVAILABLE = false;
 try { const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (SpeechRecognition) SR_AVAILABLE = true; } catch(e){ SR_AVAILABLE=false; }
 
+/* Improved startSpeechRecognition with clearer lifecycle control */
+function startSpeechRecognition({lang='en-US', interim=true, timeout=10000, onInterim=null} = {}) {
+  return new Promise((resolve) => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { resolve(null); return; }
+    let recognition;
+    try { recognition = new SR(); } catch(e) { resolve(null); return; }
+    recognition.lang = lang;
+    recognition.interimResults = interim;
+    recognition.maxAlternatives = 3;
+
+    let finalTranscript = '';
+    let resolved = false;
+
+    const finish = (value) => {
+      if (resolved) return;
+      resolved = true;
+      try { recognition.stop(); } catch(e){}
+      resolve(value);
+    };
+
+    const timer = setTimeout(() => {
+      log('SR timeout reached');
+      finish(null);
+    }, timeout);
+
+    recognition.onresult = (evt) => {
+      // gather final & interim
+      let interimText = '';
+      for (let i = 0; i < evt.results.length; i++) {
+        const r = evt.results[i];
+        const t = r[0] && r[0].transcript ? r[0].transcript : '';
+        if (r.isFinal) finalTranscript = (finalTranscript ? finalTranscript + ' ' : '') + t.trim();
+        else interimText += t + ' ';
+      }
+      if (onInterim) {
+        try { onInterim(interimText.trim() || finalTranscript); } catch(e){}
+      }
+      if (finalTranscript) {
+        clearTimeout(timer);
+        finish(finalTranscript.trim());
+      }
+    };
+
+    recognition.onend = () => {
+      clearTimeout(timer);
+      finish(finalTranscript ? finalTranscript.trim() : null);
+    };
+    recognition.onerror = (e) => {
+      clearTimeout(timer);
+      log('SR error: ' + (e && e.error));
+      finish(null);
+    };
+
+    try { recognition.start(); } catch(e) { clearTimeout(timer); log('SR start failed: ' + e); finish(null); }
+  });
+}
+
+// interpret confirmation more robustly
+function interpretConfirmation(text) {
+  if (!text) return 'unknown';
+  const s = text.toLowerCase().trim();
+  const yesPatterns = ['yes','yeah','yep','yup','sure','correct','right','ok','okay','confirm','affirmative','y'];
+  const noPatterns = ['no','nope','nah','wrong','incorrect','cancel','stop','n'];
+  const hasYes = yesPatterns.some(p => s === p || s.includes(p));
+  const hasNo = noPatterns.some(p => s === p || s.includes(p));
+  if (hasYes && !hasNo) return 'yes';
+  if (hasNo && !hasYes) return 'no';
+  if (hasYes && hasNo) return 'ambiguous';
+  return 'unknown';
+}
+
+/* Color processing & QR detection (kept as original) */
 function createColorMask(imageData, color) {
   const data = imageData.data;
   const w = imageData.width, h = imageData.height;
@@ -157,14 +368,21 @@ function createColorMask(imageData, color) {
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i+1], b = data[i+2];
     let hit = false;
-    if (color === 'red') hit = (r > g + 25 && r > b + 25 && r > 90) || (r > 140 && r > g * 1.3 && r > b * 1.3);
-    else if (color === 'green') hit = (g > r + 25 && g > b + 25 && g > 90) || (g > 140 && g > r * 1.2 && g > b * 1.2);
-    else hit = (b > r + 20 && b > g + 20 && b > 70) || (b > 110 && b > r * 1.05 && b > g * 1.05);
-    if (hit) { out[i] = 255; out[i+1] = 255; out[i+2] = 255; out[i+3] = 255; } else { out[i] = 0; out[i+1] = 0; out[i+2] = 0; out[i+3] = 255; }
+    if (color === 'red') {
+      hit = (r > g + 25 && r > b + 25 && r > 90) || (r > 140 && r > g * 1.3 && r > b * 1.3);
+    } else if (color === 'green') {
+      hit = (g > r + 25 && g > b + 25 && g > 90) || (g > 140 && g > r * 1.2 && g > b * 1.2);
+    } else if (color === 'blue') {
+      hit = (b > r + 20 && b > g + 20 && b > 70) || (b > 110 && b > r * 1.05 && b > g * 1.05);
+    }
+    if (hit) {
+      out[i] = 255; out[i+1] = 255; out[i+2] = 255; out[i+3] = 255;
+    } else {
+      out[i] = 0; out[i+1] = 0; out[i+2] = 0; out[i+3] = 255;
+    }
   }
   return new ImageData(out, w, h);
 }
-
 function extractColorChannel(imageData, channel) {
   const data = imageData.data;
   const out = new Uint8ClampedArray(data.length);
@@ -180,7 +398,6 @@ function extractColorChannel(imageData, channel) {
   }
   return new ImageData(out, imageData.width, imageData.height);
 }
-
 function enhanceBlueContrast(imageData) {
   const data = imageData.data;
   const out = new Uint8ClampedArray(data.length);
@@ -194,7 +411,6 @@ function enhanceBlueContrast(imageData) {
   }
   return new ImageData(out, imageData.width, imageData.height);
 }
-
 function detectWithOpenCV(imageData, color) {
   if (!cvReady) return null;
   try {
@@ -203,6 +419,7 @@ function detectWithOpenCV(imageData, color) {
     cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
     const hsv = new cv.Mat();
     cv.cvtColor(rgb, hsv, cv.COLOR_RGB2HSV);
+
     const mask = new cv.Mat();
     if (color === 'red') {
       const lower1 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 80, 40, 0]);
@@ -219,29 +436,33 @@ function detectWithOpenCV(imageData, color) {
       const high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [85, 255, 255, 255]);
       cv.inRange(hsv, low, high, mask);
       low.delete(); high.delete();
-    } else {
+    } else { // blue
       const low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [90, 40, 30, 0]);
       const high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [140, 255, 255, 255]);
       cv.inRange(hsv, low, high, mask);
       low.delete(); high.delete();
     }
+
     const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3,3));
     cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
     cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, kernel);
     const rgba = new cv.Mat();
     cv.cvtColor(mask, rgba, cv.COLOR_GRAY2RGBA);
+
     const out = new ImageData(new Uint8ClampedArray(rgba.data), rgba.cols, rgba.rows);
+
     src.delete(); rgb.delete(); hsv.delete(); mask.delete(); kernel.delete(); rgba.delete();
     return out;
   } catch (e) {
+    console.warn("OpenCV detect failed:", e);
     return null;
   }
 }
-
 function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
   const COLORS = ['red','green','blue'];
   for (const color of COLORS) {
     if (targetColor && color !== targetColor) continue;
+    // 1) Try enhanced channel (fast)
     try {
       const chImg = extractColorChannel(imageData, color);
       const code = jsQR(chImg.data, chImg.width, chImg.height, { inversionAttempts: 'attemptBoth' });
@@ -254,7 +475,9 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
         }
         return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Enhanced-Channel', location: code.location || null, boxArea };
       }
-    } catch(e){}
+    } catch(e){ console.warn('Enhanced channel decode error', color, e); }
+
+    // 2) For blue: try color mask approach (helps when QR is on colored background)
     if (color === 'blue') {
       try {
         const maskImg = createColorMask(imageData, color);
@@ -268,8 +491,10 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
           }
           return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Color-Mask', location: code.location || null, boxArea };
         }
-      } catch(e){}
+      } catch(e){ console.warn('Color mask decode error', color, e); }
     }
+
+    // 3) If OpenCV available, try HSV masking then decode
     if (cvReady) {
       try {
         const cvProcessed = detectWithOpenCV(imageData, color);
@@ -285,8 +510,10 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
             return { found: true, decoded: code.data.trim(), colorFound: color, method: 'OpenCV-HSV', location: code.location || null, boxArea };
           }
         }
-      } catch(e){}
+      } catch(e){ console.warn('OpenCV approach failed for', color, e); }
     }
+
+    // 4) For blue try the special contrast enhancer
     if (color === 'blue') {
       try {
         const enhanced = enhanceBlueContrast(imageData);
@@ -300,15 +527,17 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
           }
           return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Blue-Enhanced', location: code.location || null, boxArea };
         }
-      } catch(e){}
+      } catch(e){ console.warn('Blue enhancement failed', e); }
     }
   }
   return { found: false };
 }
 
+/* Progress UI update */
 function updateProgressDisplay() {
   const colors = ['red', 'green', 'blue'];
   let foundCount = 0;
+  
   colors.forEach(color => {
     const el = color === 'red' ? progressRed : color === 'green' ? progressGreen : progressBlue;
     if (foundResults.has(color)) {
@@ -320,9 +549,19 @@ function updateProgressDisplay() {
       el.textContent = `${color.charAt(0).toUpperCase() + color.slice(1)} QR: Scanning...`;
     }
   });
-  if (foundCount > 0 && foundCount < 3) announce(`${foundCount} of 3 QR codes found. ${3 - foundCount} remaining.`, false);
+  
+  // Only announce progress, don't spam
+  if (foundCount > 0) {
+    const remaining = 3 - foundCount;
+    if (foundCount < 3) {
+      announce(`${foundCount} of 3 QR codes found. ${remaining} remaining.`, false);
+    }
+  }
+  
+  console.log(`Progress: ${foundCount}/3 QR codes found`);
 }
 
+/* Vibration helpers*/
 let lastVibrateAt = 0;
 function vibrateProximityFromRatio(ratio) {
   if (!('vibrate' in navigator)) return;
@@ -334,31 +573,39 @@ function vibrateProximityFromRatio(ratio) {
   const pattern = [dur, 40];
   try { navigator.vibrate(pattern); } catch(e){}
 }
-function vibrateApproachPattern(ratio) {
-  if (!('vibrate' in navigator)) return;
-  try { navigator.vibrate([40,30,60]); } catch(e){}
-}
 function vibrateArrival() {
   if (!('vibrate' in navigator)) return;
   try { navigator.vibrate([80,40,80,40,120]); } catch(e){}
 }
+function vibrateApproachPattern(ratio) {
+  if (!('vibrate' in navigator)) return;
+  try { navigator.vibrate([30,40,60]); } catch(e){}
+}
 
+/* Camera start/stop & loop*/
 async function startCamera() {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
+    });
     const video = document.createElement('video');
     video.autoplay = true; video.playsInline = true; video.muted = true;
     video.srcObject = stream;
     await video.play();
+
     canvasDisp.width = video.videoWidth || 1280;
     canvasDisp.height = video.videoHeight || 720;
     previewCanvas.width = Math.min(1280, canvasDisp.width);
     previewCanvas.height = Math.min(720, canvasDisp.height);
+
+    // centre scan box
     scanBox.size = Math.min(SCAN_SIZE, Math.floor(Math.min(canvasDisp.width, canvasDisp.height) * 0.5));
     scanBox.x = Math.floor((canvasDisp.width - scanBox.size)/2);
     scanBox.y = Math.floor((canvasDisp.height - scanBox.size)/2);
+
     scanStartTime = Date.now();
-    actionsTriggered = actionsTriggered || false;
+    foundResults.clear();
+    actionsTriggered = false;
     scannerRunning = true;
     announce("Camera started. Scanning for QR codes. Point the phone at the QR.", true);
     updateProgressDisplay();
@@ -381,6 +628,7 @@ function stopCamera() {
   log("Camera stopped.");
 }
 
+/* Load coco model (async) */
 async function loadCocoModel() {
   try {
     log("Loading coco-ssd...");
@@ -394,15 +642,20 @@ async function loadCocoModel() {
 }
 loadCocoModel();
 
+/* Draw helper for preview and overlays */
 function drawPreviewFrame(tmpCanvas) {
   try {
     previewCtx.clearRect(0,0,previewCanvas.width, previewCanvas.height);
     previewCtx.drawImage(tmpCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
+
+    // overlay scan box (scaled)
     const sx = previewCanvas.width / tmpCanvas.width;
     const sy = previewCanvas.height / tmpCanvas.height;
     previewCtx.strokeStyle = 'rgba(0,255,128,0.9)';
     previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
     previewCtx.strokeRect(Math.round(scanBox.x*sx), Math.round(scanBox.y*sy), Math.round(scanBox.size*sx), Math.round(scanBox.size*sy));
+
+    // overlay object detections
     if (latestDetections && latestDetections.length && enableDetectCheckbox.checked) {
       previewCtx.save();
       previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
@@ -426,23 +679,36 @@ function drawPreviewFrame(tmpCanvas) {
   } catch(e) { console.warn("drawPreviewFrame error", e); }
 }
 
+/*  Processing loop (QR + Object detection)*/
 let qrDecoderBusy = false, frameSkipCounter = 0;
 async function processFrame(video) {
   if (!scannerRunning) return;
   animationFrameId = requestAnimationFrame(() => processFrame(video));
   if (!video || video.readyState < 2) return;
+
   frameSkipCounter++;
-  if (frameSkipCounter % 2 !== 0) return;
+  if (frameSkipCounter % 2 !== 0 && foundResults.size < 3) return;
+
+  // Ensure canvas sizes
   canvasDisp.width = video.videoWidth || canvasDisp.width;
   canvasDisp.height = video.videoHeight || canvasDisp.height;
+
+  // Draw frame into processing canvas
   ctxDisp.drawImage(video, 0, 0, canvasDisp.width, canvasDisp.height);
+
+  // Create temporary preview canvas
   const tmp = document.createElement('canvas');
-  tmp.width = canvasDisp.width; tmp.height = canvasDisp.height;
+  tmp.width = canvasDisp.width; 
+  tmp.height = canvasDisp.height;
   const tmpCtx = tmp.getContext('2d');
   tmpCtx.drawImage(canvasDisp, 0, 0);
-  tmpCtx.strokeStyle = '#00ff88';
+
+  // Draw scan box for sighted helper
+  tmpCtx.strokeStyle = '#00ff88'; 
   tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
   tmpCtx.strokeRect(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
+
+  // Draw object detection boxes if available
   if (latestDetections && latestDetections.length > 0 && enableDetectCheckbox.checked) {
     tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
     for (const d of latestDetections) {
@@ -458,38 +724,65 @@ async function processFrame(video) {
       tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
     }
   }
+
+  // Draw to visible preview
   drawPreviewFrame(tmp);
+
   if (qrDecoderBusy) return;
   qrDecoderBusy = true;
+
   setTimeout(async () => {
     try {
+      // Read scan area image data
       const imageData = ctxDisp.getImageData(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
       const targetFilter = (colorFilterEl.value === "Any") ? null : colorFilterEl.value.toLowerCase();
       const colorOrder = targetFilter ? [targetFilter] : ['blue','red','green'];
+
       for (const color of colorOrder) {
+        if (foundResults.has(color)) continue;
+
         const detection = detect_colored_qr_in_frame_js(imageData, color);
         if (detection.found && detection.decoded) {
           const decodedClean = detection.decoded.trim();
-          foundResults.set(color, { decoded: decodedClean, method: detection.method || 'unknown', boxArea: detection.boxArea || null });
+          foundResults.set(color, { 
+            decoded: decodedClean, 
+            method: detection.method || 'unknown', 
+            boxArea: detection.boxArea || null 
+          });
+
           announce(`${color} QR found: ${decodedClean}`, true);
           updateProgressDisplay();
+
           if (detection.boxArea) {
             const scanArea = scanBox.size * scanBox.size;
             const ratio = detection.boxArea / scanArea;
             vibrateProximityFromRatio(ratio);
             if (ratio >= 0.15) vibrateApproachPattern(ratio);
           }
+
           handleDecoded(decodedClean, color);
           break;
         }
       }
-      const requiredColors = ['red','green','blue'];
+
+      // CRITICAL: Check if ALL 3 colors are found before triggering
+      const requiredColors = ['red', 'green', 'blue'];
       const foundColors = Array.from(foundResults.keys());
       const allColorsFound = requiredColors.every(color => foundColors.includes(color));
+
+      console.log('QR Status Check:');
+      console.log('Required colors:', requiredColors);
+      console.log('Found colors:', foundColors);
+      console.log('All colors found:', allColorsFound);
+      console.log('Actions triggered:', actionsTriggered);
+
+      // Only trigger if ALL 3 colors found AND not already triggered
       if (!actionsTriggered && allColorsFound) {
-        actionsTriggered = true;
+        console.log('TRIGGERING ALL ACTIONS - All 3 QR codes detected!');
         triggerAllActionsOnce();
       }
+
+      // Object detection logic (unchanged)...
       const now = performance.now();
       if (enableDetectCheckbox.checked && cocoReady && (now - lastDetectTime > DETECTION_INTERVAL_MS)) {
         lastDetectTime = now;
@@ -508,9 +801,17 @@ async function processFrame(video) {
             const [x,y,w,h] = p.bbox;
             return { class: p.class, score: p.score, bbox: [x*scaleBack, y*scaleBack, w*scaleBack, h*scaleBack] };
           });
-          if (latestDetections.length) updateAlertsList(latestDetections.slice(0,4)); else updateAlertsList([]);
+
+          if (latestDetections.length) {
+            updateAlertsList(latestDetections.slice(0,4));
+          } else {
+            updateAlertsList([]);
+          }
+
+          // Obstacle detection logic (unchanged)...
           let candidate = null;
-          const fh = canvasDisp.height; const fw = canvasDisp.width;
+          const fh = canvasDisp.height;
+          const fw = canvasDisp.width;
           for (const det of latestDetections) {
             if (!HARMFUL_CLASSES.has(det.class)) continue;
             const [x,y,w,h] = det.bbox;
@@ -526,45 +827,70 @@ async function processFrame(video) {
             const centerDelta = Math.abs(cx - fw/2) / fw;
             const isAhead = (centerDelta <= CENTER_TOLERANCE) && (h / fh >= 0.06);
             if (isAhead) {
-              const cls = det.class; const nowTs = Date.now();
+              const cls = det.class;
+              const nowTs = Date.now();
               if (!lastAlertAt[cls] || (nowTs - lastAlertAt[cls] > alertCooldown)) {
                 const ratio = (h / fh);
                 let distMeters = (DISTANCE_ESTIMATE_SCALE / Math.max(ratio, 0.02));
                 distMeters = Math.min(Math.max(distMeters, 0.2), 50.0);
-                if (distMeters <= 5.0) { announce(`Obstacle ahead: ${cls}, approximately ${distMeters.toFixed(1)} meters.`, false); lastAlertAt[cls] = nowTs; log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`); }
+                if (distMeters <= 5.0) {
+                  announce(`Obstacle ahead: ${cls}, approximately ${distMeters.toFixed(1)} meters.`, false);
+                  lastAlertAt[cls] = nowTs;
+                  log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`);
+                }
               }
             }
           }
-        } catch(e){}
+        } catch(e) {
+          console.warn("Object detection error", e);
+        }
       }
-    } catch(e){ console.error("Frame processing error:", e); } finally { qrDecoderBusy = false; }
+
+    } catch(e) {
+      console.error("Frame processing error:", e);
+    } finally {
+      qrDecoderBusy = false;
+    }
   }, 36);
 }
 
+
+/*  Alerts list UI */
 function updateAlertsList(dets) {
   alertsList.innerHTML = '';
   for (const d of dets) {
-    const li = document.createElement('li'); li.textContent = `${d.class} ${(d.score*100).toFixed(0)}%`; alertsList.appendChild(li);
+    const li = document.createElement('li');
+    li.textContent = `${d.class} ${(d.score*100).toFixed(0)}%`;
+    alertsList.appendChild(li);
   }
-  if (dets.length === 0) { const li = document.createElement('li'); li.textContent = 'No recent alerts'; alertsList.appendChild(li); }
+  if (dets.length === 0) {
+    const li = document.createElement('li'); li.textContent = 'No recent alerts'; alertsList.appendChild(li);
+  }
 }
 
+/* Simple arrival/decoded handling with navigation integration */
 function handleDecoded(decoded, color) {
   const decodedClean = decoded.trim();
-  if (arrivedFinal) return;
+
+  // Check if we're in navigation mode waiting for QR verification
   if (navigationState.active && navigationState.waitingForQR) {
     const handled = handleNavigationQRScan(decodedClean);
-    if (handled) return;
+    if (handled) return; // Navigation system handled it
+    // If not handled, fall through to normal processing
   }
+
+  // Normal navigation target checking (for old-style arrival detection)
   if (currentNavigationTarget && !navigationState.active) {
     const target = (currentNavigationTarget || "").toLowerCase();
     const detected = decodedClean.toLowerCase();
     if (detected === target || detected.includes(target) || target.includes(detected)) {
       log("Arrival confirmed: " + decodedClean);
       announce(`You have arrived at ${decodedClean}.`, true);
-      currentLocation = decodedClean; currentNavigationTarget = null;
+      currentLocation = decodedClean;
+      currentNavigationTarget = null;
+      stopCamera();
       vibrateArrival();
-      arrivedFinal = true;
+      setTimeout(()=>{ alert(`Arrival confirmed: ${decodedClean}`); }, 800);
       return;
     } else {
       if (decodedClean !== currentLocation) {
@@ -575,44 +901,123 @@ function handleDecoded(decoded, color) {
       return;
     }
   }
+
+  // Standard location update - but NOT if navigation just completed
   if (decodedClean !== currentLocation && !navigationJustCompleted) {
     currentLocation = decodedClean;
     log("Current location updated: " + decodedClean);
     announce(`Current location: ${decodedClean}`, false);
     setTimeout(()=>{ announce("When ready, speak your destination. The app will listen automatically.", false); }, 900);
   } else if (navigationJustCompleted) {
+    // Just update location quietly after navigation completion
     currentLocation = decodedClean;
     log("Location updated after navigation completion: " + decodedClean);
   }
 }
 
-function triggerAllActionsOnce() {
-  if (actionsTriggered === false) return;
-  log("ALL THREE COLOR QR CODES DETECTED - PROCESSING");
-  announce("All three QR codes detected. Processing information now.", true);
+/*  After 3 QRs found - made async to allow speakAndWait flow */
+async function triggerAllActionsOnce() {
+  if (actionsTriggered) {
+    console.log('Actions already triggered, skipping');
+    return;
+  }
+
+  // Double-check that we have all required colors
+  const requiredColors = ['red', 'green', 'blue'];
+  const foundColors = Array.from(foundResults.keys());
+  const allColorsFound = requiredColors.every(color => foundColors.includes(color));
+
+  if (!allColorsFound) {
+    console.log('Not all colors found yet:', foundColors);
+    return;
+  }
+
+  actionsTriggered = true;
+
+  log("ALL THREE COLOR QR CODES DETECTED - TRIGGERING ACTIONS");
+  await speakAndWait("All three QR codes detected. Processing information now.", true);
+
   const greenQR = foundResults.get('green')?.decoded || '';
   const blueQR = foundResults.get('blue')?.decoded || '';
   const redQR = foundResults.get('red')?.decoded || '';
+
+  console.log('QR Code Results:');
+  console.log('Red QR (Location):', redQR);
+  console.log('Green QR (Map):', greenQR);
+  console.log('Blue QR (Accessibility):', blueQR);
+
+  // Set current location immediately
   currentLocation = redQR;
-  setTimeout(() => { log("Map info: " + greenQR); announce("Map information available.", false); drawMap(); mapModal.style.display = 'flex'; }, 700);
-  setTimeout(() => { log("Accessibility: " + blueQR); announce("Accessibility information: " + blueQR, false); }, 1500);
-  setTimeout(() => { log("Current location confirmed: " + redQR); announce("Your current location is " + redQR, false); }, 2500);
+
+  stopCamera();
+
+  // Sequence the announcements with proper timing
+  setTimeout(() => {
+    log("Map info: " + greenQR);
+    announce("Map information available.", false);
+    drawMap();
+    mapModal.style.display = 'flex';
+  }, 700);
+
+  setTimeout(() => {
+    log("Accessibility: " + blueQR);
+    announce("Accessibility information: " + blueQR, false);
+  }, 1500);
+
+  setTimeout(() => {
+    log("Current location confirmed: " + redQR);
+    announce("Your current location is " + redQR, false);
+  }, 2500);
+
   setTimeout(async () => {
     if (SR_AVAILABLE) {
-      announce("I will listen for your destination now.", true);
-      const perm = await ensureMicrophonePermission();
-      if (perm) ask_destination_via_voice(); else { announce("Microphone access is needed for voice input. Press the Voice Destination button to speak.", false); }
+      // Use speakAndWait, then beep, then start voice flow
+      await speakAndWait("I will listen for your destination now.", true);
+      await new Promise(r => setTimeout(r, 120)); // tiny gap
+      playBeep();
+      ask_destination_via_voice();
     } else {
       show_destination_modal();
     }
   }, 3600);
 }
 
+/* Map drawing (keeps your improved label placement) */
 const node_coords = {
-  "Female Toilet (NGT1)": [2009, 1357],"Male Toilet (NGT2)": [1955, 1357],"N001 (backdoor)": [2100, 1135],"N001": [1907, 1121],"N002": [1651, 1097],"N003": [1387, 1074],"N004": [892, 1097],"N005": [638, 1115],"N006": [383, 1139],"N007": [127, 1158],"N008": [4, 1330],"Female Toilet (NGT5)": [357, 1350],"Male Toilet (NGT4)": [403, 1351],"N009": [492, 1330],"N010": [822, 1335],"N011": [1251, 1340],"N012": [1597, 1340],
+  "Female Toilet (NGT1)": [2009, 1357],
+  "Male Toilet (NGT2)": [1955, 1357],
+  "N001 (backdoor)": [2100, 1135],
+  "N001": [1907, 1121],
+  "N002": [1651, 1097],
+  "N003": [1387, 1074],
+  "N004": [892, 1097],
+  "N005": [638, 1115],
+  "N006": [383, 1139],
+  "N007": [127, 1158],
+  "N008": [4, 1330],
+  "Female Toilet (NGT5)": [357, 1350],
+  "Male Toilet (NGT4)": [403, 1351],
+  "N009": [492, 1330],
+  "N010": [822, 1335],
+  "N011": [1251, 1340],
+  "N012": [1597, 1340],
 };
 const graph_raw = {
-  "Female Toilet (NGT1)": {"Male Toilet (NGT2)": 1.89},"N001": {"Female Toilet (NGT1)": 9.00, "N001 (backdoor)": 6.77, "N002": 9.00},"N002": {"N003": 9.28},"N003": {"N004": 17.35},"N004": {"N005": 8.91},"N005": {"N006": 8.97},"N006": {"Male Toilet (NGT4)": 7.45, "Female Toilet (NGT5)": 7.44, "N007": 8.99},"N007": {"N008": 7.40},"N008": {"Female Toilet (NGT5)": 12.38},"Female Toilet (NGT5)": {"Male Toilet (NGT4)": 1.61},"Male Toilet (NGT4)": {"N009": 3.20},"N009": {"N010": 11.55},"N010": {"N011": 15.02},"N011": {"N012": 12.11},"N012": {"Male Toilet (NGT2)": 12.55}
+  "Female Toilet (NGT1)": {"Male Toilet (NGT2)": 1.89},
+  "N001": {"Female Toilet (NGT1)": 9.00, "N001 (backdoor)": 6.77, "N002": 9.00},
+  "N002": {"N003": 9.28},
+  "N003": {"N004": 17.35},
+  "N004": {"N005": 8.91},
+  "N005": {"N006": 8.97},
+  "N006": {"Male Toilet (NGT4)": 7.45, "Female Toilet (NGT5)": 7.44, "N007": 8.99},
+  "N007": {"N008": 7.40},
+  "N008": {"Female Toilet (NGT5)": 12.38},
+  "Female Toilet (NGT5)": {"Male Toilet (NGT4)": 1.61},
+  "Male Toilet (NGT4)": {"N009": 3.20},
+  "N009": {"N010": 11.55},
+  "N010": {"N011": 15.02},
+  "N011": {"N012": 12.11},
+  "N012": {"Male Toilet (NGT2)": 12.55}
 };
 function add_bidirectional_edges(graph_in) {
   const new_graph = {};
@@ -632,39 +1037,135 @@ const graph = add_bidirectional_edges(graph_raw);
 function drawMap() {
   const ctx = mapCanvas.getContext('2d');
   ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+  console.log("Drawing map. currentLocation =", currentLocation);
+  console.log("destinationNode =", typeof destinationNode !== "undefined" ? destinationNode : "undefined");
+
   const cw = mapCanvas.width, ch = mapCanvas.height, margin = 40;
   const xs = Object.values(node_coords).map(p => p[0]);
   const ys = Object.values(node_coords).map(p => p[1]);
   const minx = Math.min(...xs), maxx = Math.max(...xs);
   const miny = Math.min(...ys), maxy = Math.max(...ys);
+
   const project = (p) => {
     const sx = (p[0] - minx) / (maxx - minx || 1);
     const sy = (p[1] - miny) / (maxy - miny || 1);
-    return [ margin + Math.floor(sx * (cw - margin * 2)), margin + Math.floor(sy * (ch - margin * 2)) ];
+    return [
+      margin + Math.floor(sx * (cw - margin * 2)),
+      margin + Math.floor(sy * (ch - margin * 2))
+    ];
   };
-  ctx.strokeStyle = "#bbb"; ctx.lineWidth = 1;
-  for (const a in graph) for (const b in graph[a]) if (node_coords[a] && node_coords[b]) { const pa = project(node_coords[a]); const pb = project(node_coords[b]); ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke(); }
-  const labels = []; ctx.font = "12px Arial";
+
+  // Draw edges
+  ctx.strokeStyle = "#bbb";
+  ctx.lineWidth = 1;
+  for (const a in graph) {
+    for (const b in graph[a]) {
+      if (node_coords[a] && node_coords[b]) {
+        const pa = project(node_coords[a]);
+        const pb = project(node_coords[b]);
+        ctx.beginPath();
+        ctx.moveTo(pa[0], pa[1]);
+        ctx.lineTo(pb[0], pb[1]);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Prepare labels
+  const labels = [];
+  ctx.font = "12px Arial";
   for (const name in node_coords) {
-    const p = project(node_coords[name]); const text = name; const padding = 6; const textW = Math.min(300, ctx.measureText(text).width);
-    let lx = p[0] + 8; let ly = p[1] - 6; const labelH = 18;
+    const p = project(node_coords[name]);
+    const text = name;
+    const padding = 6;
+    const textW = Math.min(300, ctx.measureText(text).width);
+    let lx = p[0] + 8;
+    let ly = p[1] - 6;
+    const labelH = 18;
+
     if (lx + textW + padding * 2 > cw - margin) lx = p[0] - textW - padding * 2 - 8;
-    if (lx < margin) lx = margin; if (ly < margin) ly = margin;
+    if (lx < margin) lx = margin;
+    if (ly < margin) ly = margin;
+
     labels.push({ name, p, lx, ly, textW, labelH, padding });
   }
-  for (let i = 0; i < labels.length; i++) for (let j = 0; j < i; j++) { const a = labels[i], b = labels[j]; const aLeft = a.lx, aRight = a.lx + a.textW + a.padding * 2; const aTop = a.ly, aBottom = a.ly + a.labelH + a.padding; const bLeft = b.lx, bRight = b.lx + b.textW + b.padding * 2; const bTop = b.ly, bBottom = b.ly + b.labelH + b.padding; const overlapX = !(aRight < bLeft || aLeft > bRight); const overlapY = !(aBottom < bTop || aTop > bBottom); if (overlapX && overlapY) a.ly = bBottom + 4; }
+
+  // Prevent label overlaps
+  for (let i = 0; i < labels.length; i++) {
+    const a = labels[i];
+    for (let j = 0; j < i; j++) {
+      const b = labels[j];
+      const aLeft = a.lx, aRight = a.lx + a.textW + a.padding * 2;
+      const aTop = a.ly, aBottom = a.ly + a.labelH + a.padding;
+      const bLeft = b.lx, bRight = b.lx + b.textW + b.padding * 2;
+      const bTop = b.ly, bBottom = b.ly + b.labelH + b.padding;
+      const overlapX = !(aRight < bLeft || aLeft > bRight);
+      const overlapY = !(aBottom < bTop || aTop > bBottom);
+      if (overlapX && overlapY) {
+        a.ly = bBottom + 4;
+      }
+    }
+  }
+
+  // Draw nodes and labels with proper highlighting
   for (const lbl of labels) {
     const p = lbl.p;
-    if (currentLocation && lbl.name === currentLocation) { ctx.fillStyle = "#ff4444"; ctx.beginPath(); ctx.arc(p[0], p[1], 10, 0, Math.PI * 2); ctx.fill(); }
-    else if (typeof destinationNode !== "undefined" && lbl.name === destinationNode) { ctx.fillStyle = "#22bb33"; ctx.beginPath(); ctx.arc(p[0], p[1], 9, 0, Math.PI * 2); ctx.fill(); }
-    else { ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2); ctx.fill(); }
-    const bx = lbl.lx, by = lbl.ly - 4; const bw = lbl.textW + lbl.padding * 2; const bh = lbl.labelH + lbl.padding / 1.5;
-    ctx.fillStyle = 'rgba(255,255,255,0.9)'; roundRect(ctx, bx, by, bw, bh, 6, true, false); ctx.fillStyle = '#000'; ctx.fillText(lbl.name, bx + lbl.padding, by + bh / 1.35);
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(bx + 4, by + bh / 2); ctx.stroke();
+
+    // Node highlighting logic
+    if (currentLocation && lbl.name === currentLocation) {
+      // 🔴 Current location in red
+      ctx.fillStyle = "#ff4444";
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 10, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (typeof destinationNode !== "undefined" && lbl.name === destinationNode) {
+      // 🟢 Destination in green
+      ctx.fillStyle = "#22bb33";
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 9, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // ⚫ Normal nodes
+      ctx.fillStyle = "#333";
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Label box + text
+    const bx = lbl.lx, by = lbl.ly - 4;
+    const bw = lbl.textW + lbl.padding * 2;
+    const bh = lbl.labelH + lbl.padding / 1.5;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    roundRect(ctx, bx, by, bw, bh, 6, true, false);
+    ctx.fillStyle = '#000';
+    ctx.fillText(lbl.name, bx + lbl.padding, by + bh / 1.35);
+
+    // Connection line
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(p[0], p[1]);
+    ctx.lineTo(bx + 4, by + bh / 2);
+    ctx.stroke();
   }
 }
-function roundRect(ctx, x, y, w, h, r, fill, stroke) { if (typeof r === 'undefined') r = 5; ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath(); if (fill) ctx.fill(); if (stroke) ctx.stroke(); }
 
+function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+  if (typeof r === 'undefined') r = 5;
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  if (stroke) ctx.stroke();
+}
+
+/* Speech + destination helpers (improved confirmation handling) */
 function show_destination_modal() {
   if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
   const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
@@ -672,148 +1173,147 @@ function show_destination_modal() {
   announce("Opening text selection. Check the screen for options.", false);
   const dest = prompt(`Current: ${currentLocation}\nAvailable:\n${candidateList}\n\nType name or number:`);
   if (!dest) { announce("No destination selected.", false); return; }
-  let destination = dest.trim(); const destNumber = parseInt(destination);
-  if (!isNaN(destNumber) && destNumber >=1 && destNumber <= candidates.length) destination = candidates[destNumber-1];
-  else { const best = findBestLocationMatch(destination, candidates); if (best) destination = best; else { announce("Destination not found. Please try voice input.", false); setTimeout(()=>ask_destination_via_voice(), 600); return; } }
+  let destination = dest.trim();
+  const destNumber = parseInt(destination);
+  if (!isNaN(destNumber) && destNumber >=1 && destNumber <= candidates.length) {
+    destination = candidates[destNumber-1];
+  } else {
+    const best = findBestLocationMatch(destination, candidates);
+    if (best) destination = best;
+    else { announce("Destination not found. Please try voice input.", false); setTimeout(()=>ask_destination_via_voice(), 600); return; }
+  }
   announce(`You selected ${destination}. Confirming.`, false);
-  if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination); else { announce("Selection cancelled. Try again.", false); setTimeout(()=>show_destination_modal(), 500); }
+  if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
+  else { announce("Selection cancelled. Try again.", false); setTimeout(()=>show_destination_modal(), 500); }
 }
 function findBestLocationMatch(input, candidates) {
   const s = input.toLowerCase().trim();
-  let m = candidates.find(c=>c.toLowerCase()===s); if (m) return m;
-  m = candidates.find(c=>c.toLowerCase().includes(s)); if (m) return m;
-  m = candidates.find(c=>c.toLowerCase().split(' ').some(word => s.includes(word) || word.includes(s))); if (m) return m;
+  let m = candidates.find(c=>c.toLowerCase()===s);
+  if (m) return m;
+  m = candidates.find(c=>c.toLowerCase().includes(s));
+  if (m) return m;
+  m = candidates.find(c=>c.toLowerCase().split(' ').some(word => s.includes(word) || word.includes(s)));
+  if (m) return m;
   return null;
 }
 
-function speakAndWait(text, {interrupt=true} = {}) {
-  return new Promise((resolve) => {
-    if (!text) return resolve();
-    if (interrupt) speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 1.0;
-    utt.onend = () => resolve();
-    utt.onerror = () => resolve();
-    speechSynthesis.speak(utt);
-  });
-}
-
-async function ensureMicrophonePermission() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
-  try {
-    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    micStream.getTracks().forEach(t => t.stop());
-    log("Microphone permission obtained.");
-    return true;
-  } catch (e) {
-    log("Microphone permission denied: " + e);
-    return false;
-  }
-}
-
-function startSpeechRecognition({ lang = 'en-US', interim = false, timeout = 9000, maxAlternatives = 5, continuous = false, onInterim = null } = {}) {
-  return new Promise((resolve) => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { resolve(null); return; }
-    let recognition;
-    try { recognition = new SR(); } catch (e) { resolve(null); return; }
-    recognition.lang = lang; recognition.interimResults = interim; recognition.maxAlternatives = maxAlternatives; recognition.continuous = continuous;
-    let resolved = false;
-    const safeResolve = (val) => { if (resolved) return; resolved = true; try { recognition.stop(); } catch(e){}; resolve(val); };
-    const timer = setTimeout(() => safeResolve(null), timeout);
-    recognition.onresult = (evt) => {
-      try {
-        const results = Array.from(evt.results || []);
-        let transcript = null;
-        for (const r of results) if (r.isFinal && r[0] && r[0].transcript) { transcript = r[0].transcript; break; }
-        if (!transcript && results.length) { const last = results[results.length - 1]; if (last && last[0] && last[0].transcript) transcript = last[0].transcript; }
-        if (onInterim && results.length) onInterim(results.map(r => r[0].transcript).join(' '));
-        if (transcript) { clearTimeout(timer); safeResolve(transcript.trim()); }
-      } catch (err) { }
-    };
-    recognition.onend = () => {
-      try {
-        if (!resolved) {
-          let finalCandidate = null;
-          if (recognition.result && recognition.result.length) {
-            const last = recognition.result[recognition.result.length - 1];
-            if (last && last[0] && last[0].transcript) finalCandidate = last[0].transcript;
-          }
-          clearTimeout(timer); safeResolve(finalCandidate ? finalCandidate.trim() : null);
-        }
-      } catch(e){ clearTimeout(timer); safeResolve(null); }
-    };
-    recognition.onerror = (ev) => { clearTimeout(timer); safeResolve(null); };
-    try { recognition.start(); } catch (e) { clearTimeout(timer); safeResolve(null); }
-  });
-}
-
-function interpretConfirmation(text) {
-  if (!text) return 'unknown';
-  const s = text.toLowerCase().trim();
-  const yesPatterns = ['yes','yeah','yep','yup','sure','correct','right','ok','okay','confirm','affirmative'];
-  const noPatterns = ['no','nope','nah','wrong','incorrect','cancel','stop'];
-  const hasYes = yesPatterns.some(p=>s.includes(p));
-  const hasNo = noPatterns.some(p=>s.includes(p));
-  if (hasYes && !hasNo) return 'yes';
-  if (hasNo && !hasYes) return 'no';
-  if (hasYes && hasNo) return 'ambiguous';
-  return 'unknown';
-}
-
+/* ask_destination_via_voice: improved flow using speakAndWait + beep + SR */
 async function ask_destination_via_voice(){
   if (!currentLocation) { announce("No current location. Scan first.", false); return; }
   if (!SR_AVAILABLE) { announce("Speech recognition not available. Please use text input.", false); show_destination_modal(); return; }
-  if (!userGesturePerformed) await ensureMicrophonePermission();
   let tries = 0;
   while (tries < 4) {
     tries++;
-    await speakAndWait("Please say your destination after the beep.");
+    // Tell user to speak (synchronously wait TTS -> beep -> SR)
+    await speakAndWait("Please say your destination after the beep.", true);
+    await new Promise(r=>setTimeout(r,120));
+    playBeep();
     const interimBox = document.getElementById('listeningBox');
     interimBox.style.display = 'block'; interimBox.textContent = "Listening… (speak now)";
-    const transcript = await startSpeechRecognition({ lang:'en-US', interim:false, timeout:9000, maxAlternatives:5, onInterim:(t)=>{ interimBox.textContent = "Listening… " + t; }});
-    interimBox.textContent = ''; interimBox.style.display = 'none';
+    const transcript = await startSpeechRecognition({lang:'en-US', interim:true, timeout:9000, onInterim:(t)=>{ interimBox.textContent = "Listening… " + t; }});
+    interimBox.textContent = '';
     if (!transcript) {
       log("No transcript");
-      if (!userGesturePerformed && tries === 1) { announce("I could not access the microphone automatically. Press the Voice Destination button and then speak after the beep.", false); voiceDestBtn.classList.add('secondary'); await new Promise(r=>setTimeout(r,1500)); continue; }
-      announce("I didn't catch that. Let's try again.", false); continue;
+      if (!userGesturePerformed && tries === 1) {
+        announce("I could not access the microphone automatically. If you allow microphone access, press the Voice Destination button once. Then speak after the beep.", false);
+        voiceDestBtn.classList.add('secondary');
+        await new Promise(r=>setTimeout(r,1500));
+        continue;
+      }
+      announce("I didn't catch that. Let's try again.", false);
+      continue;
     }
     log("Recognized: " + transcript);
     const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
     const bestMatch = findBestLocationMatch(transcript, candidates);
     if (!bestMatch) { announce("I couldn't find that location. Please say your destination again.", false); continue; }
-    await speakAndWait(`Did you mean ${bestMatch}? Say yes or no.`);
-    const interimBox2 = document.getElementById('listeningBox'); interimBox2.style.display = 'block'; interimBox2.textContent = "Listening for yes or no...";
-    const conf = await startSpeechRecognition({ lang:'en-US', interim:false, timeout:8000, maxAlternatives:5 });
-    interimBox2.textContent = ''; interimBox2.style.display = 'none';
-    if (!conf) { announce("I didn't hear your response. Please say yes or no.", false); continue; }
-    const verdict = interpretConfirmation(conf);
-    if (verdict === 'yes') { announce(`Confirmed. Starting navigation to ${bestMatch}.`, true); start_navigation(bestMatch); return; }
-    else if (verdict === 'no') { announce("Okay, let's try again. Please say your destination.", true); continue; }
-    else { announce("I didn't understand. Please say 'yes' or 'no'.", false); continue; }
+
+    // Confirm via voice
+    let confirmAttempts = 0;
+    while (confirmAttempts < 3) {
+      confirmAttempts++;
+      await speakAndWait(`Did you mean ${bestMatch}? Say yes or no.`, true);
+      await new Promise(r=>setTimeout(r, 140));
+      playBeep();
+      const interimBox2 = document.getElementById('listeningBox');
+      interimBox2.style.display = 'block'; interimBox2.textContent = "Listening for yes or no...";
+      const conf = await startSpeechRecognition({lang:'en-US', interim:false, timeout:10000, onInterim:(t)=>{ interimBox2.textContent = "Hearing: " + t; }});
+      interimBox2.textContent = '';
+      if (!conf) {
+        announce("I didn't hear your response. Please say yes or no clearly.", false);
+        continue;
+      }
+      log("Confirmation recognition: " + conf);
+      const verdict = interpretConfirmation(conf);
+      if (verdict === 'yes') {
+        announce(`Confirmed. Starting navigation to ${bestMatch}.`, true);
+        start_navigation(bestMatch);
+        return;
+      } else if (verdict === 'no') {
+        announce("Okay, let's try again. Please say your destination.", true);
+        // start outer loop again
+        break;
+      } else if (verdict === 'ambiguous') {
+        announce("I heard mixed signals. Please say just yes or no.", false);
+        continue;
+      } else {
+        announce("I didn't understand. Please say 'yes' to confirm or 'no' to try again.", false);
+        continue;
+      }
+    }
+    // If confirmation loop reached max attempts, restart outer tries
+    if (confirmAttempts >= 3) {
+      announce("Voice confirmation failed. Let's try selecting your destination again.", false);
+    }
   }
-  announce("Voice input failed. Please press the Voice Destination button or type the destination.", false);
+  announce("Voice input failed repeatedly. Please type destination instead.", false);
   show_destination_modal();
 }
 
+/* Navigation - Step by step with QR verification */
 function dijkstra(gr, start, end) {
-  const pq = new MinHeap(); pq.push({cost:0,node:start,path:[]}); const visited = new Set();
+  const pq = new MinHeap();
+  pq.push({cost:0,node:start,path:[]});
+  const visited = new Set();
   while (!pq.empty()) {
-    const item = pq.pop(); const {cost,node,path}=item; if (visited.has(node)) continue; const newPath = path.concat([node]); visited.add(node); if (node===end) return {path:newPath,cost}; const neighbors = gr[node]||{};
-    for (const nb in neighbors) if (!visited.has(nb)) pq.push({cost: cost + neighbors[nb], node: nb, path: newPath});
+    const item = pq.pop();
+    const {cost, node, path} = item;
+    if (visited.has(node)) continue;
+    const newPath = path.concat([node]);
+    visited.add(node);
+    if (node === end) return {path:newPath, cost};
+    const neighbors = gr[node] || {};
+    for (const nb in neighbors) {
+      if (!visited.has(nb)) pq.push({cost: cost + neighbors[nb], node: nb, path: newPath});
+    }
   }
   return {path:[], cost: Infinity};
 }
-class MinHeap { constructor(){ this.a = []; } push(x){ this.a.push(x); this._siftUp(); } pop(){ if(this.a.length===0) return null; const r=this.a[0]; const last=this.a.pop(); if(this.a.length) { this.a[0]=last; this._siftDown(); } return r; } empty(){ return this.a.length===0; } _siftUp(){ let i=this.a.length-1; while(i>0){ let p=Math.floor((i-1)/2); if(this.a[p].cost<=this.a[i].cost) break; [this.a[p],this.a[i]]=[this.a[i],this.a[p]]; i=p; } } _siftDown(){ let i=0; const n=this.a.length; while(true){ let l=i*2+1; let r=i*2+2; let smallest=i; if(l<n && this.a[l].cost < this.a[smallest].cost) smallest=l; if(r<n && this.a[r].cost < this.a[smallest].cost) smallest=r; if(smallest===i) break; [this.a[i],this.a[smallest]]=[this.a[smallest],this.a[i]]; i=smallest; } } }
-
+class MinHeap {
+  constructor(){ this.a = []; }
+  push(x){ this.a.push(x); this._siftUp(); }
+  pop(){ if(this.a.length===0) return null; const r=this.a[0]; const last=this.a.pop(); if(this.a.length) { this.a[0]=last; this._siftDown(); } return r; }
+  empty(){ return this.a.length===0; }
+  _siftUp(){ let i=this.a.length-1; while(i>0){ let p=Math.floor((i-1)/2); if(this.a[p].cost<=this.a[i].cost) break; [this.a[p],this.a[i]]=[this.a[i],this.a[p]]; i=p; } }
+  _siftDown(){ let i=0; const n=this.a.length; while(true){ let l=i*2+1; let r=i*2+2; let smallest=i; if(l<n && this.a[l].cost < this.a[smallest].cost) smallest=l; if(r<n && this.a[r].cost < this.a[smallest].cost) smallest=r; if(smallest===i) break; [this.a[i],this.a[smallest]]=[this.a[smallest],this.a[i]]; i=smallest; } }
+}
 function get_turn_direction(p1,p2,p3) {
-  const v1=[p2[0]-p1[0],p2[1]-p1[1]]; const v2=[p3[0]-p2[0],p3[1]-p2[1]];
-  const raw = (Math.atan2(v2[1],v2[0]) - Math.atan2(v1[1],v1[0])) * 180/Math.PI; const angle = (raw + 360) % 360;
-  if (angle < 45 || angle > 315) return "Move straight"; if (angle >= 45 && angle < 135) return "Turn right"; if (angle >= 135 && angle < 225) return "Turn back"; return "Turn left";
+  const v1 = [p2[0]-p1[0], p2[1]-p1[1]];
+  const v2 = [p3[0]-p2[0], p3[1]-p2[1]];
+  const raw = (Math.atan2(v2[1], v2[0]) - Math.atan2(v1[1], v1[0])) * 180/Math.PI;
+  const angle = (raw + 360) % 360;
+  if (angle < 45 || angle > 315) return "Move straight";
+  if (angle >= 45 && angle < 135) return "Turn right";
+  if (angle >= 135 && angle < 225) return "Turn back";
+  return "Turn left";
 }
 function get_initial_direction_simple(p1,p2) {
-  const dx = p2[0]-p1[0], dy = p2[1]-p1[1]; const angle = (Math.atan2(dy,dx) * 180/Math.PI + 360) % 360;
-  if (angle >= 315 || angle < 45) return "Move straight"; if (angle >= 45 && angle < 135) return "Turn right"; if (angle >= 135 && angle < 225) return "Turn back"; return "Turn left";
+  const dx = p2[0]-p1[0], dy = p2[1]-p1[1];
+  const angle = (Math.atan2(dy,dx) * 180/Math.PI + 360) % 360;
+  if (angle >= 315 || angle < 45) return "Move straight";
+  if (angle >= 45 && angle < 135) return "Turn right";
+  if (angle >= 135 && angle < 225) return "Turn back";
+  return "Turn left";
 }
 
 function start_navigation(destination) {
@@ -821,67 +1321,152 @@ function start_navigation(destination) {
   if (!destination) { announce("No destination selected.", false); return; }
   const res = dijkstra(graph, currentLocation, destination);
   if (!res.path.length || res.cost === Infinity) { announce("No path found to that destination.", false); alert("Routing error: no path found."); return; }
-  navigationState.active = true; navigationState.path = res.path; navigationState.currentStepIndex = 0; navigationState.waitingForQR = false; navigationState.expectedLocation = null;
+
+  // Initialize navigation state
+  navigationState.active = true;
+  navigationState.path = res.path;
+  navigationState.currentStepIndex = 0;
+  navigationState.waitingForQR = false;
+  navigationState.expectedLocation = null;
+
   announce(`Navigation started to ${destination}. Total distance ${Math.round(res.cost)} meters.`, true);
-  setTimeout(() => { giveCurrentInstruction(); }, 1500);
+
+  // Give first instruction
+  setTimeout(() => {
+    giveCurrentInstruction();
+  }, 1500);
 }
 
 function giveCurrentInstruction() {
   if (!navigationState.active) return;
-  const path = navigationState.path; const idx = navigationState.currentStepIndex;
-  if (idx >= path.length - 1) { finishNavigation(); return; }
-  const current = path[idx]; const next = path[idx + 1];
+
+  const path = navigationState.path;
+  const idx = navigationState.currentStepIndex;
+
+  // Check if we've reached destination
+  if (idx >= path.length - 1) {
+    finishNavigation();
+    return;
+  }
+
+  const current = path[idx];
+  const next = path[idx + 1];
   const distance = (graph[current] && graph[current][next]) ? graph[current][next] : 0;
-  const totalSteps = path.length - 1; const stepNum = idx + 1;
+  const totalSteps = path.length - 1;
+  const stepNum = idx + 1;
+
   let instruction;
-  if (idx === 0) instruction = `From ${current}, ${get_initial_direction_simple(node_coords[current], node_coords[next])} towards ${next}`;
-  else { const prev = path[idx - 1]; instruction = `At ${current}, ${get_turn_direction(node_coords[prev], node_coords[current], node_coords[next])} towards ${next}`; }
+  if (idx === 0) {
+    instruction = `From ${current}, ${get_initial_direction_simple(node_coords[current], node_coords[next])} towards ${next}`;
+  } else {
+    const prev = path[idx - 1];
+    instruction = `At ${current}, ${get_turn_direction(node_coords[prev], node_coords[current], node_coords[next])} towards ${next}`;
+  }
+
   const stepInfo = `Step ${stepNum} of ${totalSteps}. ${instruction}. Distance ${distance.toFixed(0)} meters.`;
+
   announce(stepInfo, true);
   log(`🗺️ Navigation Step ${stepNum}/${totalSteps}: ${instruction} (${distance.toFixed(0)}m)`);
   overlayText.textContent = `Step ${stepNum}/${totalSteps}: Walk to ${next}`;
-  setTimeout(() => { waitForNextCommand(next); }, 3000);
+
+  // Now wait for voice command to proceed
+  setTimeout(() => {
+    waitForNextCommand(next);
+  }, 3000);
 }
 
 async function waitForNextCommand(expectedNext) {
   if (!navigationState.active) return;
-  await speakAndWait(`Say 'next' when you reach ${expectedNext}, or 'cancel' to stop navigation.`);
+
+  announce(`Say 'next' when you reach ${expectedNext}, or 'cancel' to stop navigation.`, false);
+
+  // Wait indefinitely for user response with longer timeout periods
   while (navigationState.active) {
-    const interimBox = document.getElementById('listeningBox'); interimBox.style.display = 'block'; interimBox.textContent = "Listening for 'next' or 'cancel'...";
-    const response = await startSpeechRecognition({ lang: 'en-US', interim: false, timeout: 30000, maxAlternatives:5 });
-    interimBox.textContent = ''; interimBox.style.display = 'none';
-    if (!response) continue;
-    const command = response.toLowerCase().trim(); log(`Navigation command heard: "${command}"`);
-    if (command.includes('next') || command.includes('ready') || command.includes('continue') || command.includes('arrived')) { startQRVerification(expectedNext); return; }
-    else if (command.includes('cancel') || command.includes('stop') || command.includes('quit')) { cancelNavigation(); return; }
-    else if (command.includes('repeat') || command.includes('again')) { giveCurrentInstruction(); return; }
-    else { announce("Didn't understand. Say 'next' or scan the QR code.", false); continue; }
+    const interimBox = document.getElementById('listeningBox');
+    interimBox.style.display = 'block';
+    interimBox.textContent = "Listening for 'next' or 'cancel'...";
+
+    const response = await startSpeechRecognition({
+      lang: 'en-US',
+      interim: true,
+      timeout: 30000, // Increased to 30 seconds
+      onInterim: (t) => { interimBox.textContent = "Listening... " + t; }
+    });
+
+    interimBox.textContent = '';
+
+    if (!response) {
+      interimBox.style.display = 'block';
+      interimBox.textContent = "Waiting... (say 'next' when ready)";
+      await new Promise(r => setTimeout(r, 2000)); // Brief pause
+      continue; // Restart listening loop
+    }
+
+    const command = response.toLowerCase().trim();
+    log(`Navigation command heard: "${command}"`);
+
+    if (command.includes('next') || command.includes('ready') || command.includes('continue') || command.includes('arrived')) {
+      startQRVerification(expectedNext);
+      return;
+    } else if (command.includes('cancel') || command.includes('stop') || command.includes('quit')) {
+      cancelNavigation();
+      return;
+    } else if (command.includes('repeat') || command.includes('again')) {
+      giveCurrentInstruction();
+      return;
+    } else {
+      interimBox.style.display = 'block';
+      interimBox.textContent = "Didn't understand - waiting for 'next' or 'cancel'...";
+      await new Promise(r => setTimeout(r, 1500));
+      continue;
+    }
   }
 }
 
 function startQRVerification(expectedLocation) {
   if (!navigationState.active) return;
-  navigationState.waitingForQR = true; navigationState.expectedLocation = expectedLocation;
+
+  navigationState.waitingForQR = true;
+  navigationState.expectedLocation = expectedLocation;
+
   announce(`Please scan the QR code at ${expectedLocation} to verify your location.`, true);
   overlayText.textContent = `Scan QR at ${expectedLocation} to continue`;
-  if (!scannerRunning) { setTimeout(()=>{ startCamera(); }, 1000); }
+
+  // Start camera if not running
+  if (!scannerRunning) {
+    log("🎥 Starting camera for QR verification...");
+    setTimeout(() => {
+      startCamera();
+    }, 1000);
+  }
 }
 
 function handleNavigationQRScan(scannedLocation) {
   if (!navigationState.active || !navigationState.waitingForQR) return false;
-  const expected = navigationState.expectedLocation; const scanned = scannedLocation.trim();
+
+  const expected = navigationState.expectedLocation;
+  const scanned = scannedLocation.trim();
+
   log(`🔍 QR Verification: Expected "${expected}", Scanned "${scanned}"`);
-  if (scanned.toLowerCase() === expected.toLowerCase()) {
+
+  if (scanned === expected || scanned.toLowerCase() === expected.toLowerCase()) {
+    // Correct location scanned
     announce(`Verified: You are at ${scanned}.`, true);
     navigationState.waitingForQR = false;
     navigationState.currentStepIndex++;
     currentLocation = scanned;
-    if (navigationState.currentStepIndex >= navigationState.path.length - 0) {
-      finishNavigation(); return true;
-    }
-    setTimeout(() => { giveCurrentInstruction(); }, 1500);
+
+    // Stop camera briefly
+    stopCamera();
+
+    // Continue to next step after brief pause
+    setTimeout(() => {
+      giveCurrentInstruction();
+    }, 2000);
+
     return true;
   } else {
+    // Wrong location scanned
     announce(`This is ${scanned}, but I expected ${expected}. Please find ${expected} and scan its QR code.`, false);
     return false;
   }
@@ -889,26 +1474,69 @@ function handleNavigationQRScan(scannedLocation) {
 
 function finishNavigation() {
   const finalDestination = navigationState.path[navigationState.path.length - 1];
-  navigationState.active = false; navigationState.waitingForQR = false;
-  navigationJustCompleted = true; arrivedFinal = true;
+  navigationState.active = false;
+  navigationState.waitingForQR = false;
+
+  // Set flag to prevent asking for new destination
+  navigationJustCompleted = true;
+
   announce(`You have arrived at your destination: ${finalDestination}. Navigation complete!`, true);
   overlayText.textContent = `Arrived at ${finalDestination} - Navigation Complete`;
+
   log(`🎯 Navigation completed to ${finalDestination}`);
+
+  // Clear navigation target
   currentNavigationTarget = null;
+
+  // Vibrate arrival pattern
   vibrateArrival();
+
+  // Reset the flag after 3 seconds to allow future navigation
+  setTimeout(() => {
+    navigationJustCompleted = false;
+    announce("Ready for new navigation if needed.", false);
+  }, 3000);
 }
 
 function cancelNavigation() {
-  navigationState.active = false; navigationState.waitingForQR = false; currentNavigationTarget = null;
+  navigationState.active = false;
+  navigationState.waitingForQR = false;
+  currentNavigationTarget = null;
+
   announce("Navigation cancelled.", true);
   overlayText.textContent = "Navigation cancelled";
   log("❌ Navigation cancelled by user");
+
+  if (scannerRunning) {
+    stopCamera();
+  }
 }
 
+/* UI handlers & cleanup */
 startBtn.onclick = async () => { if (scannerRunning) { announce("Scanner already running.", false); return; } userGesturePerformed = true; await startCamera(); };
-stopBtn.onclick = () => { stopCamera(); if (navigationState.active) cancelNavigation(); };
-restartBtn.onclick = () => { if (navigationState.active) cancelNavigation(); stopCamera(); foundResults.clear(); actionsTriggered=false; scanStartTime = Date.now(); setTimeout(()=>{ startBtn.click(); },300); };
-voiceDestBtn.onclick = async () => { userGesturePerformed = true; const ok = await ensureMicrophonePermission(); if (!ok) { announce("Microphone permission required. Allow microphone access and try again.", false); return; } ask_destination_via_voice(); };
+stopBtn.onclick = () => { 
+  stopCamera(); 
+  if (navigationState.active) {
+    cancelNavigation();
+  }
+};
+restartBtn.onclick = () => { 
+  if (navigationState.active) {
+    cancelNavigation();
+  }
+  stopCamera(); 
+  foundResults.clear(); 
+  actionsTriggered=false; 
+  scanStartTime = Date.now(); 
+  setTimeout(()=>{ startBtn.click(); },300); 
+};
+// voiceDestBtn: request microphone permission proactively to avoid silent failures
+voiceDestBtn.onclick = async () => { 
+  userGesturePerformed = true; 
+  try { await navigator.mediaDevices.getUserMedia({ audio: true }); log('Audio permission granted (getUserMedia)'); } 
+  catch(e) { log('Audio permission request failed or cancelled: ' + e); }
+  ask_destination_via_voice(); 
+};
 mapBtn.onclick = () => { drawMap(); mapModal.style.display = 'flex'; announce("Map opened. Close when ready.", false); };
 closeMap.onclick = () => { mapModal.style.display = 'none'; announce("Map closed.", false); };
 
@@ -918,10 +1546,6 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'm' || e.key === 'M') { mapBtn.click(); }
   if (e.key === 'r' || e.key === 'R') { restartBtn.click(); }
   if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
-});
-
-previewCanvas.addEventListener('click', () => {
-  if (navigationState.active) { cancelNavigation(); }
 });
 
 function onOpenCvReady(){ cvReady = true; log("OpenCV ready"); announce("OpenCV loaded - improved color detection available.", false); }
