@@ -1209,76 +1209,166 @@ function findBestLocationMatch(input, candidates) {
   return null;
 }
 
-function startSpeechRecognition({lang='en-US', interim=true, timeout=15000, onInterim=null} = {}) {
+function startSpeechRecognition({lang='en-US', interim=true, timeout=15000, onInterim=null, continuous=false} = {}) {
   return new Promise((resolve) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { resolve(null); return; }
-    let recognition;
-    try { recognition = new SR(); } catch(e) { resolve(null); return; }
-    recognition.lang = lang; 
-    recognition.interimResults = interim; 
-    recognition.maxAlternatives = 3;
-    recognition.continuous = false;
     
+    let recognition;
+    try { 
+      recognition = new SR(); 
+    } catch(e) { 
+      console.log('Failed to create speech recognition:', e);
+      resolve(null); 
+      return; 
+    }
+    
+    // Optimized settings for better recognition
+    recognition.lang = lang;
+    recognition.interimResults = interim;
+    recognition.maxAlternatives = 5;
+    recognition.continuous = continuous;
+    recognition.grammars = null;
+    
+    let allTranscripts = [];
     let finalTranscript = '';
     let resolved = false;
+    let hasStarted = false;
+    
     const timer = setTimeout(() => {
-      if (!resolved) { resolved = true; try { recognition.stop(); } catch(e){}; resolve(null); }
+      if (!resolved) { 
+        resolved = true; 
+        try { recognition.stop(); } catch(e){}; 
+        // Return best transcript we have
+        const result = finalTranscript || allTranscripts.join(' ').trim();
+        console.log('Speech timeout - returning:', result || 'null');
+        resolve(result || null); 
+      }
     }, timeout);
     
+    recognition.onstart = () => {
+      hasStarted = true;
+      console.log('Speech recognition started');
+    };
+    
     recognition.onresult = (evt) => {
+      console.log('Speech result event:', evt);
       const results = Array.from(evt.results);
-      const interimText = results.map(r => r[0].transcript).join(' ');
-      if (onInterim) onInterim(interimText);
-      for (const r of results) { if (r.isFinal) finalTranscript = r[0].transcript; }
-      if (finalTranscript && !resolved) { 
-        resolved = true; 
-        clearTimeout(timer); 
-        try { recognition.stop(); } catch(e){}; 
-        resolve(finalTranscript.trim()); 
+      
+      // Collect all transcripts
+      allTranscripts = [];
+      let latestFinal = '';
+      
+      for (const result of results) {
+        const transcript = result[0].transcript.trim();
+        allTranscripts.push(transcript);
+        
+        if (result.isFinal) {
+          latestFinal = transcript;
+          console.log('Final speech result:', transcript);
+        } else if (onInterim) {
+          onInterim(transcript);
+        }
+      }
+      
+      // Update final transcript
+      if (latestFinal) {
+        finalTranscript = latestFinal;
+      }
+      
+      // For short confirmations, resolve immediately on any clear result
+      if (finalTranscript && !continuous && !resolved) {
+        resolved = true;
+        clearTimeout(timer);
+        try { recognition.stop(); } catch(e){}
+        console.log('Resolving with final transcript:', finalTranscript);
+        resolve(finalTranscript);
       }
     };
     
     recognition.onend = () => {
+      console.log('Speech recognition ended');
       if (resolved) return;
-      resolved = true; 
-      clearTimeout(timer); 
-      resolve(finalTranscript ? finalTranscript.trim() : null);
+      
+      resolved = true;
+      clearTimeout(timer);
+      
+      // Return the best transcript we have
+      const result = finalTranscript || allTranscripts.join(' ').trim();
+      console.log('Speech ended - returning:', result || 'null');
+      resolve(result || null);
     };
     
     recognition.onerror = (e) => {
-      console.log('Speech recognition error:', e.error);
+      console.log('Speech recognition error:', e.error, e);
       if (resolved) return;
-      resolved = true; 
-      clearTimeout(timer); 
-      try { recognition.stop(); } catch(err){}; 
-      resolve(null);
+      
+      // Don't immediately fail on common errors - try to return what we have
+      if (e.error === 'no-speech' || e.error === 'audio-capture') {
+        resolved = true;
+        clearTimeout(timer);
+        const result = finalTranscript || allTranscripts.join(' ').trim();
+        console.log('Speech error but returning partial:', result || 'null');
+        resolve(result || null);
+      } else {
+        resolved = true;
+        clearTimeout(timer);
+        try { recognition.stop(); } catch(err){}
+        resolve(null);
+      }
+    };
+    
+    recognition.onspeechstart = () => {
+      console.log('Speech detected');
+    };
+    
+    recognition.onspeechend = () => {
+      console.log('Speech ended');
     };
     
     try { 
+      console.log('Starting speech recognition...');
       recognition.start(); 
     } catch(e) { 
+      console.log('Failed to start recognition:', e);
       clearTimeout(timer); 
       resolve(null); 
     }
   });
 }
 
-// Improved confirmation interpretation
+// Improved confirmation interpretation with more patterns
 function interpretConfirmation(text) {
   if (!text) return 'unknown';
   const s = text.toLowerCase().trim();
   
-  // More flexible patterns for yes/no
-  const yesPatterns = ['yes', 'yeah', 'yep', 'yup', 'sure', 'correct', 'right', 'ok', 'okay', 'confirm', 'affirmative', 'good', 'that'];
-  const noPatterns = ['no', 'nope', 'nah', 'wrong', 'incorrect', 'cancel', 'stop', 'not'];
+  console.log('Interpreting confirmation for:', s);
   
+  // More comprehensive patterns for yes/no
+  const yesPatterns = [
+    'yes', 'yeah', 'yep', 'yup', 'sure', 'correct', 'right', 'ok', 'okay', 
+    'confirm', 'affirmative', 'good', 'that', 'absolutely', 'definitely', 
+    'perfect', 'exactly', 'true', 'positive', 'go', 'proceed'
+  ];
+  const noPatterns = [
+    'no', 'nope', 'nah', 'wrong', 'incorrect', 'cancel', 'stop', 'not', 
+    'negative', 'false', 'different', 'other', 'another', 'change'
+  ];
+  
+  // Check for exact matches first
+  if (yesPatterns.includes(s)) return 'yes';
+  if (noPatterns.includes(s)) return 'no';
+  
+  // Check for partial matches
   const hasYes = yesPatterns.some(pattern => s.includes(pattern));
   const hasNo = noPatterns.some(pattern => s.includes(pattern));
+  
+  console.log('Has yes pattern:', hasYes, 'Has no pattern:', hasNo);
   
   if (hasYes && !hasNo) return 'yes';
   if (hasNo && !hasYes) return 'no'; 
   if (hasYes && hasNo) return 'ambiguous';
+  
   return 'unknown';
 }
 
@@ -1290,95 +1380,121 @@ async function ask_destination_via_voice(){
   while (tries < 4) {
     tries++;
     announce("Please say your destination clearly after the beep.", true);
-    await new Promise(r=>setTimeout(r,1000));
+    
+    // Add audio beep
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch(e) {}
+    
+    await new Promise(r=>setTimeout(r,1200));
     
     const interimBox = document.getElementById('listeningBox');
     interimBox.style.display = 'block'; 
-    interimBox.textContent = "🎤 Listening for destination...";
+    interimBox.textContent = "🎤 Listening for destination... Speak now!";
     
     const transcript = await startSpeechRecognition({
       lang:'en-US', 
       interim:true, 
-      timeout:12000, 
-      onInterim:(t)=>{ interimBox.textContent = "🎤 Hearing: " + t; }
+      timeout:10000, 
+      onInterim:(t)=>{ interimBox.textContent = "🎤 I hear: " + t; }
     });
     
     interimBox.textContent = '';
     interimBox.style.display = 'none';
     
     if (!transcript) {
-      log("No transcript received");
-      if (tries === 1) {
-        announce("I didn't catch that. Please speak clearly and loudly. Let me try again.", false);
-        continue;
-      }
-      announce("I didn't hear anything. Let me try once more.", false);
+      log("No speech detected");
+      announce("I didn't hear anything. Please speak loudly and clearly. Trying again.", false);
       continue;
     }
     
-    log("Recognized destination: " + transcript);
+    log("Destination heard: " + transcript);
+    console.log("Raw transcript:", transcript);
+    
     const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
     const bestMatch = findBestLocationMatch(transcript, candidates);
     
     if (!bestMatch) { 
-      announce("I couldn't find that location. Please say your destination again.", false); 
+      announce(`I heard "${transcript}" but couldn't find that location. Please try again.`, false); 
       continue; 
     }
 
-    // Voice confirmation with improved handling
-    let confirmed = false;
+    // Improved voice confirmation process
     let confirmAttempts = 0;
+    const maxConfirmAttempts = 4;
 
-    while (confirmAttempts < 3) {
+    while (confirmAttempts < maxConfirmAttempts) {
       confirmAttempts++;
       
-      announce(`Did you say ${bestMatch}? Please say yes or no.`, false);
+      announce(`I heard ${bestMatch}. Say YES to confirm, or NO to try again.`, false);
       
-      // Wait for TTS to finish + pause
-      await new Promise(r => setTimeout(r, 2500)); 
+      // Wait longer for TTS to complete
+      await new Promise(r => setTimeout(r, 3500)); 
       
       interimBox.style.display = 'block';
-      interimBox.textContent = "🎤 Listening for yes or no...";
+      interimBox.textContent = "🎤 Say YES or NO clearly...";
       
-      const conf = await startSpeechRecognition({
+      // Shorter timeout for yes/no responses, but more sensitive
+      const confirmation = await startSpeechRecognition({
         lang:'en-US', 
-        interim:false, 
-        timeout:8000,
-        onInterim: (t) => { interimBox.textContent = "🎤 Hearing: " + t; }
+        interim:true, 
+        timeout:6000,
+        continuous:false,
+        onInterim: (t) => { 
+          interimBox.textContent = "🎤 I hear: " + t;
+          console.log('Confirmation interim:', t);
+        }
       });
 
       interimBox.textContent = '';
       interimBox.style.display = 'none';
 
-      if (!conf) {
-        announce("I didn't hear your response. Please say yes or no clearly.", false);
-        continue;
+      console.log('Confirmation result:', confirmation);
+
+      if (!confirmation) {
+        if (confirmAttempts < maxConfirmAttempts) {
+          announce("I didn't catch that. Please say YES or NO loudly.", false);
+          await new Promise(r => setTimeout(r, 1000));
+          continue;
+        } else {
+          announce("Having trouble hearing you. Let me ask for your destination again.", false);
+          break;
+        }
       }
 
-      log("Confirmation heard: " + conf);
-      const verdict = interpretConfirmation(conf);
+      const verdict = interpretConfirmation(confirmation);
+      console.log('Confirmation verdict:', verdict);
 
       if (verdict === 'yes') {
-        announce(`Perfect! Starting navigation to ${bestMatch}.`, true);
+        announce(`Great! Starting navigation to ${bestMatch}.`, true);
         start_navigation(bestMatch); 
         return;
       } else if (verdict === 'no') {
         announce("I understand. Let me ask for your destination again.", false);
         break; // Break confirmation loop to retry destination
       } else {
-        announce("I'm not sure if you said yes or no. Please say clearly: yes to confirm or no to try again.", false);
-        continue; 
+        if (confirmAttempts < maxConfirmAttempts) {
+          announce(`I heard "${confirmation}". Please say just YES to confirm, or NO to try again.`, false);
+          await new Promise(r => setTimeout(r, 1000));
+          continue;
+        } else {
+          announce("Having trouble with confirmation. Let me ask for your destination again.", false);
+          break;
+        }
       }
-    }
-
-    // If confirmation failed after 3 attempts, try destination again
-    if (confirmAttempts >= 3) {
-      announce("Let me try asking for your destination again.", false);
     }
   }
   
-  announce("Voice input is having trouble. Let me show you text options instead.", false);
-  show_destination_modal();
+  announce("Voice recognition is having difficulty. Let me show you the text options.", false);
+  setTimeout(() => show_destination_modal(), 1000);
 }
 
 /* ---------------------------
@@ -1504,45 +1620,71 @@ async function waitForNextCommand(expectedNext) {
   
   announce(`Say 'next' when you reach ${expectedNext}, or 'cancel' to stop navigation.`, false);
   
-  // Wait indefinitely for user response
-  while (navigationState.active) {
+  let attempts = 0;
+  // Wait indefinitely for user response but with better recognition
+  while (navigationState.active && attempts < 10) {
+    attempts++;
     const interimBox = document.getElementById('listeningBox');
     interimBox.style.display = 'block';
-    interimBox.textContent = "🎤 Listening for 'next' or 'cancel'...";
+    interimBox.textContent = "🎤 Say 'NEXT' when ready, or 'CANCEL' to stop...";
     
     const response = await startSpeechRecognition({
       lang: 'en-US', 
       interim: true, 
-      timeout: 20000, 
-      onInterim: (t) => { interimBox.textContent = "🎤 Hearing: " + t; }
+      timeout: 15000,
+      continuous: false,
+      onInterim: (t) => { 
+        interimBox.textContent = "🎤 I hear: " + t;
+        console.log('Navigation command interim:', t);
+      }
     });
     
     interimBox.textContent = '';
     interimBox.style.display = 'none';
     
+    console.log('Navigation command result:', response);
+    
     if (!response) {
-      // Just quietly restart listening
-      await new Promise(r => setTimeout(r, 1000));
+      // Show visual feedback and continue listening
+      interimBox.style.display = 'block';
+      interimBox.textContent = "No speech detected. Say 'NEXT' when ready...";
+      await new Promise(r => setTimeout(r, 2000));
+      interimBox.style.display = 'none';
       continue;
     }
     
     const command = response.toLowerCase().trim();
-    log(`Navigation command: "${command}"`);
+    console.log(`Navigation command processed: "${command}"`);
     
-    if (command.includes('next') || command.includes('ready') || command.includes('continue') || command.includes('arrived') || command.includes('there') || command.includes('here')) {
+    // More flexible command recognition
+    if (command.includes('next') || command.includes('ready') || command.includes('continue') || 
+        command.includes('arrived') || command.includes('there') || command.includes('here') ||
+        command.includes('done') || command.includes('reached') || command === 'go') {
+      console.log('Next command recognized');
       startQRVerification(expectedNext);
       return;
-    } else if (command.includes('cancel') || command.includes('stop') || command.includes('quit') || command.includes('exit')) {
+    } else if (command.includes('cancel') || command.includes('stop') || command.includes('quit') || 
+               command.includes('exit') || command.includes('end')) {
+      console.log('Cancel command recognized');
       cancelNavigation();
       return;
     } else if (command.includes('repeat') || command.includes('again') || command.includes('instruction')) {
+      console.log('Repeat command recognized');
       giveCurrentInstruction();
       return;
     } else {
-      // Continue listening without nagging
-      await new Promise(r => setTimeout(r, 500));
+      // Provide feedback about unrecognized command
+      interimBox.style.display = 'block';
+      interimBox.textContent = `Heard "${command}" - say 'NEXT' or 'CANCEL'`;
+      await new Promise(r => setTimeout(r, 2000));
+      interimBox.style.display = 'none';
       continue;
     }
+  }
+  
+  // If we've tried many times, offer alternatives
+  if (attempts >= 10) {
+    announce("Having trouble with voice commands. Press the Stop button to cancel navigation, or try speaking more clearly.", false);
   }
 }
 
