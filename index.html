@@ -867,28 +867,37 @@ function add_bidirectional_edges(graph_in) {
 }
 const graph = add_bidirectional_edges(graph_raw);
 
-// map drawing function (same improved version from your original)
 function drawMap() {
   const ctx = mapCanvas.getContext('2d');
-  ctx.clearRect(0,0,mapCanvas.width,mapCanvas.height);
+  ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+
   const cw = mapCanvas.width, ch = mapCanvas.height, margin = 40;
   const xs = Object.values(node_coords).map(p => p[0]);
   const ys = Object.values(node_coords).map(p => p[1]);
   const minx = Math.min(...xs), maxx = Math.max(...xs);
   const miny = Math.min(...ys), maxy = Math.max(...ys);
+
   const project = (p) => {
     const sx = (p[0] - minx) / (maxx - minx || 1);
     const sy = (p[1] - miny) / (maxy - miny || 1);
-    return [ margin + Math.floor(sx * (cw - margin * 2)), margin + Math.floor(sy * (ch - margin * 2)) ];
+    return [
+      margin + Math.floor(sx * (cw - margin * 2)),
+      margin + Math.floor(sy * (ch - margin * 2))
+    ];
   };
 
   // draw edges
-  ctx.strokeStyle = "#bbb"; ctx.lineWidth = 1;
+  ctx.strokeStyle = "#bbb";
+  ctx.lineWidth = 1;
   for (const a in graph) {
     for (const b in graph[a]) {
       if (node_coords[a] && node_coords[b]) {
-        const pa = project(node_coords[a]); const pb = project(node_coords[b]);
-        ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.stroke();
+        const pa = project(node_coords[a]);
+        const pb = project(node_coords[b]);
+        ctx.beginPath();
+        ctx.moveTo(pa[0], pa[1]);
+        ctx.lineTo(pb[0], pb[1]);
+        ctx.stroke();
       }
     }
   }
@@ -904,19 +913,22 @@ function drawMap() {
     let lx = p[0] + 8;
     let ly = p[1] - 6;
     const labelH = 18;
-    if (lx + textW + padding*2 > cw - margin) lx = p[0] - textW - padding*2 - 8;
+
+    if (lx + textW + padding * 2 > cw - margin) lx = p[0] - textW - padding * 2 - 8;
     if (lx < margin) lx = margin;
     if (ly < margin) ly = margin;
-    labels.push({name, p, lx, ly, textW, labelH, padding});
+
+    labels.push({ name, p, lx, ly, textW, labelH, padding });
   }
 
+  // prevent overlaps
   for (let i = 0; i < labels.length; i++) {
     const a = labels[i];
     for (let j = 0; j < i; j++) {
       const b = labels[j];
-      const aLeft = a.lx, aRight = a.lx + a.textW + a.padding*2;
+      const aLeft = a.lx, aRight = a.lx + a.textW + a.padding * 2;
       const aTop = a.ly, aBottom = a.ly + a.labelH + a.padding;
-      const bLeft = b.lx, bRight = b.lx + b.textW + b.padding*2;
+      const bLeft = b.lx, bRight = b.lx + b.textW + b.padding * 2;
       const bTop = b.ly, bBottom = b.ly + b.labelH + b.padding;
       const overlapX = !(aRight < bLeft || aLeft > bRight);
       const overlapY = !(aBottom < bTop || aTop > bBottom);
@@ -926,20 +938,48 @@ function drawMap() {
     }
   }
 
+  // draw nodes + labels
   for (const lbl of labels) {
     const p = lbl.p;
-    if (lbl.name === currentLocation) {
-      ctx.fillStyle = "#ff4444"; ctx.beginPath(); ctx.arc(p[0], p[1], 8, 0, Math.PI*2); ctx.fill();
+
+    if (typeof currentLocation !== "undefined" && lbl.name === currentLocation) {
+      // 🔴 Current location in red
+      ctx.fillStyle = "#ff4444";
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 10, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (typeof destinationNode !== "undefined" && lbl.name === destinationNode) {
+      // 🟢 Destination in green
+      ctx.fillStyle = "#22bb33";
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 9, 0, Math.PI * 2);
+      ctx.fill();
     } else {
-      ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI*2); ctx.fill();
+      // ⚫ Normal nodes
+      ctx.fillStyle = "#333";
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 5, 0, Math.PI * 2);
+      ctx.fill();
     }
-    const bx = lbl.lx, by = lbl.ly - 4; const bw = lbl.textW + lbl.padding*2; const bh = lbl.labelH + lbl.padding/1.5;
+
+    // Label box + text
+    const bx = lbl.lx, by = lbl.ly - 4;
+    const bw = lbl.textW + lbl.padding * 2;
+    const bh = lbl.labelH + lbl.padding / 1.5;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     roundRect(ctx, bx, by, bw, bh, 6, true, false);
-    ctx.fillStyle = '#000'; ctx.fillText(lbl.name, bx + lbl.padding, by + bh/1.35);
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(bx + 4, by + bh/2); ctx.stroke();
+    ctx.fillStyle = '#000';
+    ctx.fillText(lbl.name, bx + lbl.padding, by + bh / 1.35);
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(p[0], p[1]);
+    ctx.lineTo(bx + 4, by + bh / 2);
+    ctx.stroke();
   }
 }
+
 function roundRect(ctx, x, y, w, h, r, fill, stroke) {
   if (typeof r === 'undefined') r = 5;
   ctx.beginPath();
@@ -1016,53 +1056,84 @@ function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInt
     try { recognition.start(); } catch(e) { clearTimeout(timer); resolve(null); }
   });
 }
-async function ask_destination_via_voice(){
-  if (!currentLocation) { announce("No current location. Scan first.", false); return; }
-  if (!SR_AVAILABLE) { announce("Speech recognition not available. Please use text input.", false); show_destination_modal(); return; }
-  let tries = 0;
-  while (tries < 4) {
-    tries++;
+async function ask_destination_via_voice() {
+  if (!currentLocation) { 
+    announce("No current location. Scan first.", false); 
+    return; 
+  }
+  if (!SR_AVAILABLE) { 
+    announce("Speech recognition not available. Please use text input.", false); 
+    show_destination_modal(); 
+    return; 
+  }
+
+  let confirmed = false;
+
+  while (!confirmed) {
     announce("Please say your destination after the beep.", true);
-    await new Promise(r=>setTimeout(r,700));
+    await new Promise(r => setTimeout(r, 700));
+
     const interimBox = document.getElementById('listeningBox');
-    interimBox.style.display = 'block'; interimBox.textContent = "Listening… (speak now)";
-    const transcript = await startSpeechRecognition({lang:'en-US', interim:true, timeout:9000, onInterim:(t)=>{ interimBox.textContent = "Listening… " + t; }});
+    interimBox.style.display = 'block';
+    interimBox.textContent = "Listening… (speak now)";
+
+    const transcript = await startSpeechRecognition({
+      lang: 'en-US', 
+      interim: true, 
+      timeout: 9000, 
+      onInterim: (t) => { interimBox.textContent = "Listening… " + t; }
+    });
+
     interimBox.textContent = '';
+
     if (!transcript) {
-      log("No transcript");
-      if (!userGesturePerformed && tries === 1) {
-        announce("I could not access the microphone automatically. If you allow microphone access, press the Voice Destination button once. Then speak after the beep.", false);
-        voiceDestBtn.classList.add('secondary');
-        await new Promise(r=>setTimeout(r,1500));
-        continue;
-      }
       announce("I didn't catch that. Let's try again.", false);
-      continue;
+      continue; // loop back
     }
+
     log("Recognized: " + transcript);
     const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
     const bestMatch = findBestLocationMatch(transcript, candidates);
-    if (!bestMatch) { announce("I couldn't find that location. Please say your destination again.", false); continue; }
+
+    if (!bestMatch) {
+      announce("I couldn't find that location. Please say your destination again.", false);
+      continue; // loop back
+    }
+
+    // Ask for confirmation
     announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
-    await new Promise(r=>setTimeout(r,600));
-    const conf = await startSpeechRecognition({lang:'en-US', interim:false, timeout:6000});
+    await new Promise(r => setTimeout(r, 600));
+
+    const conf = await startSpeechRecognition({ lang: 'en-US', interim: false, timeout: 6000 });
+
     if (!conf) {
       const ok = confirm(`Did you mean ${bestMatch}? Press OK for yes.`);
-      if (ok) { start_navigation(bestMatch); return; }
-      else { announce("Okay, let's try again.", false); continue; }
+      if (ok) { 
+        start_navigation(bestMatch); 
+        confirmed = true; 
+        break; 
+      } else { 
+        announce("Okay, let's try again.", false); 
+        continue; 
+      }
     }
+
     const settled = conf.toLowerCase();
     log("Confirmation: " + settled);
+
     if (settled.includes('yes') || settled.includes('yeah') || settled.includes('correct')) {
-      start_navigation(bestMatch); return;
-    } else {
+      start_navigation(bestMatch);
+      confirmed = true; // ✅ stop the loop
+    } else if (settled.includes('no')) {
       announce("Okay, please say your destination again.", false);
-      continue;
+      continue; // ✅ re-ask destination
+    } else {
+      announce("I didn't catch that. Please say yes or no.", false);
+      continue; // loop until valid
     }
   }
-  announce("Voice input failed repeatedly. Please type destination instead.", false);
-  show_destination_modal();
 }
+
 
 /* ---------------------------
    Navigation (simplified phrasing)
