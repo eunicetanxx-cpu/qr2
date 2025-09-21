@@ -785,7 +785,7 @@ function updateAlertsList(dets) {
   if (dets.length === 0) { const li = document.createElement('li'); li.textContent = 'No recent alerts'; alertsList.appendChild(li); }
 }
 
-/* ---------- Handle decoded QR logic ---------- */
+/* ---------- Handle decoded QR logic (updated) ---------- */
 function handleDecoded(decoded, color) {
   const decodedClean = decoded.trim();
 
@@ -814,6 +814,43 @@ function handleDecoded(decoded, color) {
       return;
     }
   }
+
+  // NEW BEHAVIOUR:
+  // If the initial location hasn't been set, treat the first scanned location as the initial location,
+  // stop the camera immediately and then ask the user for their final destination.
+  if (!isFirstLocationSet) {
+    if (decodedClean !== currentLocation) {
+      currentLocation = decodedClean;
+      isFirstLocationSet = true;
+      log("Initial location set: " + decodedClean);
+      announce(`Current location detected: ${decodedClean}`, false);
+
+      // Stop the camera immediately so we don't keep scanning while asking destination
+      stopCamera();
+
+      // Give TTS a short moment to finish, then ask for destination via voice (or fallback).
+      // We use a small timeout instead of awaiting here because processFrame calls handleDecoded from a timer.
+      setTimeout(() => {
+        if (SR_AVAILABLE) {
+          // ask via voice (ask_destination_via_voice internally waits for TTS to finish before SR)
+          ask_destination_via_voice();
+        } else {
+          // fallback to modal text selection
+          show_destination_modal();
+        }
+      }, 700);
+
+    }
+    return;
+  }
+
+  // Otherwise update currentLocation when scanning different QR codes (checkpoints)
+  if (decodedClean !== currentLocation) {
+    currentLocation = decodedClean;
+    log("Location updated: " + decodedClean);
+    announce(`Location updated: ${decodedClean}`, false);
+  }
+}
 
   // If the initial location hasn't been set, treat the first scanned location as the initial location.
   if (!isFirstLocationSet) {
