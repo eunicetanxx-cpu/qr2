@@ -200,21 +200,6 @@ const log = (m) => { console.log(m); const t = new Date().toLocaleTimeString(); 
 /* backendLog — log backend events without spoken feedback */
 function backendLog(m) { console.log("[BACKEND] " + m); const t = new Date().toLocaleTimeString(); logEl.innerText += `[${t}] [BACKEND] ${m}\n`; logEl.scrollTop = logEl.scrollHeight; }
 
-/* small sleep helper */
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-/* Wait until speechSynthesis finishes speaking (or timeout) */
-async function waitForSpeechEnd(timeout = 4000) {
-  const start = performance.now();
-  // wait for any currently speaking utterance or pending queue to finish
-  while ((speechSynthesis.speaking || speechSynthesis.pending) && (performance.now() - start < timeout)) {
-    await sleep(100);
-  }
-  // small debounce to avoid race
-  await sleep(120);
-  return !(speechSynthesis.speaking || speechSynthesis.pending);
-}
-
 /* state  */
 const SCAN_SIZE = 360;
 let scanBox = { x: 0, y: 0, size: SCAN_SIZE };
@@ -271,7 +256,7 @@ function announce(text, interrupt=false) {
 let SR_AVAILABLE = false;
 try { const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (SpeechRecognition) SR_AVAILABLE = true; } catch(e){ SR_AVAILABLE=false; }
 
-/*  Color processing & QR detection (unchanged from your file) */
+/*  Color processing & QR detection */
 
 /* createColorMask: produce an ImageData mask highlighting pixels of a specific color */
 function createColorMask(imageData, color) {
@@ -691,9 +676,15 @@ async function processFrame(video) {
       const foundColors = Array.from(foundResults.keys());
       const allColorsFound = requiredColors.every(color => foundColors.includes(color));
       
+      console.log('QR Status Check:');
+      console.log('Required colors:', requiredColors);
+      console.log('Found colors:', foundColors);
+      console.log('All colors found:', allColorsFound);
+      console.log('Actions triggered:', actionsTriggered);
+      
       // Only trigger if ALL 3 colors found AND not already triggered
       if (!actionsTriggered && allColorsFound) {
-        actionsTriggered = true;
+        console.log('TRIGGERING ALL ACTIONS - All 3 QR codes detected!');
         triggerAllActionsOnce();
       }
 
@@ -867,11 +858,9 @@ function triggerAllActionsOnce() {
     announce("Your current location is " + redQR, false); 
   }, 2500);
   
-  setTimeout(async () => { 
+  setTimeout(() => { 
     if (SR_AVAILABLE) { 
       announce("I will listen for your destination now.", true); 
-      // wait until spoken prompt finishes so recognition does not overlap
-      await waitForSpeechEnd(2500);
       ask_destination_via_voice(); 
     } else { 
       show_destination_modal(); 
@@ -963,6 +952,9 @@ function drawMap() {
   const ctx = mapCanvas.getContext('2d');
   ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
 
+  console.log("Drawing map. currentLocation =", currentLocation);
+  console.log("destinationNode =", typeof destinationNode !== "undefined" ? destinationNode : "undefined");
+
   const cw = mapCanvas.width, ch = mapCanvas.height, margin = 40;
   const xs = Object.values(node_coords).map(p => p[0]);
   const ys = Object.values(node_coords).map(p => p[1]);
@@ -1034,15 +1026,19 @@ function drawMap() {
   for (const lbl of labels) {
     const p = lbl.p;
 
+    console.log(`Checking node ${lbl.name}: currentLocation=${currentLocation}, match=${lbl.name === currentLocation}`);
+
     // Node highlighting logic
     if (currentLocation && lbl.name === currentLocation) {
       // Current location in red
+      console.log(`Highlighting ${lbl.name} as current location in RED`);
       ctx.fillStyle = "#ff4444";
       ctx.beginPath();
       ctx.arc(p[0], p[1], 10, 0, Math.PI * 2);
       ctx.fill();
     } else if (typeof destinationNode !== "undefined" && lbl.name === destinationNode) {
       // Destination in green
+      console.log(`Highlighting ${lbl.name} as destination in GREEN`);
       ctx.fillStyle = "#22bb33";
       ctx.beginPath();
       ctx.arc(p[0], p[1], 9, 0, Math.PI * 2);
@@ -1301,10 +1297,8 @@ async function ask_destination_via_voice(){
   while (tries < maxTries) {
     tries++;
     
-    // use interrupt=true to ensure previous TTS doesn't overlap
     announce("Please say your destination after the beep.", true);
-    // wait for TTS to finish speaking before starting recognition
-    await waitForSpeechEnd(2500);
+    await new Promise(r=>setTimeout(r, 700));
     
     // Show listening indicator
     const interimBox = document.getElementById('listeningBox');
@@ -1345,9 +1339,9 @@ async function ask_destination_via_voice(){
       continue; 
     }
 
-    // Announce confirmation with interrupt and then wait for speech to finish before listening
-    announce(`Did you mean ${bestMatch}? Say yes or no.`, true);
-    await waitForSpeechEnd(2500);
+    // IMPROVED: Better confirmation handling
+    announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
+    await new Promise(r=>setTimeout(r, 600));
 
     let confirmAttempts = 0;
     const maxConfirmAttempts = 3;
@@ -1390,17 +1384,14 @@ async function ask_destination_via_voice(){
         break; // Go back to destination input
       } else if (verdict === 'ambiguous') {
         announce("I heard both yes and no. Please say clearly: yes or no.", false);
-        // wait for TTS to finish before listening again
-        await waitForSpeechEnd(1500);
         continue; // Try confirmation again
       } else {
         announce("I didn't understand. Please say yes or no clearly.", false);
-        await waitForSpeechEnd(1500);
         continue; // Try confirmation again
       }
     }
     
-
+    // If we exit the confirmation loop without success, continue to next destination attempt
     if (confirmAttempts >= maxConfirmAttempts) {
       announce("Having trouble with confirmation. Let's try the destination again.", false);
     }
@@ -1586,7 +1577,9 @@ function navigationDialog(path, total_cost) {
   setTimeout(showStep, 1000);
 }
 
-
+/* ---------------------------
+   UI handlers & cleanup
+   --------------------------- */
 startBtn.onclick = async () => { 
   if (scannerRunning) { 
     announce("Scanner already running.", false); 
