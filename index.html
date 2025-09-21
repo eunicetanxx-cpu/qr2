@@ -10,24 +10,21 @@
       --muted:#9aa8b2;
       --btn-h:64px; --btn-font:20px;
     }
-    /* overall layout */
     html,body{height:100%; margin:0; background:linear-gradient(180deg,#05070a 0%, #0b0f14 100%); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; -webkit-font-smoothing:antialiased;}
     .app {
-  max-width: 980px;
-  margin: 12px auto;
-  padding: 18px;
-  padding-bottom: 200px; /* 👈 leaves space for fixed controls */
-  background: linear-gradient(180deg, #071018 0, #07121a 100%);
-  border-radius: 14px;
-  box-shadow: 0 8px 36px rgba(0,0,0,0.6);
-  border: 1px solid rgba(255,255,255,0.02);
-}
-
+      max-width: 980px;
+      margin: 12px auto;
+      padding: 18px;
+      padding-bottom: 200px;
+      background: linear-gradient(180deg, #071018 0, #07121a 100%);
+      border-radius: 14px;
+      box-shadow: 0 8px 36px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.02);
+    }
     header { display:flex; gap:12px; align-items:center; }
     h1 { font-size:24px; margin:0; color:var(--accent); letter-spacing:0.6px; }
     .subtitle { color: var(--muted); font-size:14px; margin-top:4px; }
 
-    /* controls */
     .controls { margin:14px 0; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .btn { background:var(--accent); color:#000; border:none; padding:12px 18px; border-radius:12px; font-size:var(--btn-font); height:var(--btn-h); min-width:150px; cursor:pointer; box-shadow:0 8px 18px rgba(0,0,0,0.5); }
     .btn.secondary { background:transparent; color:var(--text); border:2px solid rgba(255,255,255,0.06); }
@@ -39,58 +36,44 @@
     .btn.yellow { background:#ffeb3b; color:#000; }
     .btn.grey { background:#9e9e9e; color:#fff; }
 
- 
     .main-controls {
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #071018; /* dark bar background */
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  z-index: 1000;
-  box-shadow: 0 -4px 12px rgba(0,0,0,0.6);
-}
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #071018;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 1000;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.6);
+    }
+    .main-controls .controls-row { display: flex; justify-content: space-between; gap: 12px; }
+    .main-controls .controls-row:last-child { justify-content: center; }
 
-.main-controls .controls-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.main-controls .controls-row:last-child {
-  justify-content: center;
-}
-
-    /* status area */
     .statusBox { margin-top:12px; padding:14px; background:linear-gradient(180deg,#071018,#06121a); border-radius:12px; border:1px solid rgba(0,255,136,0.03); min-height:100px; display:flex; gap:12px; align-items:flex-start; }
     #leftStatus { flex:1; }
     #overlayText { font-weight:800; font-size:20px; color:var(--text); margin-bottom:6px; }
     #srAnnounce { font-size:17px; color:var(--muted); margin-top:6px; }
     #listeningBox { margin-top:10px; font-size:18px; color:#ffb74d; min-height:22px; }
 
-    /* progress pills */
     .scan-progress { margin-top:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
     .progress-pill { padding:10px 14px; border-radius:999px; background:#071018; color:var(--muted); font-size:18px; border:1px solid rgba(255,255,255,0.02); min-width:200px; text-align:center; }
     .progress-pill.found { background:var(--accent-2); color:#000; font-weight:800; border:2px solid rgba(0,64,0,0.7); }
 
-    /* preview and overlay */
-    #previewWrap { display:flex; gap:12px; margin-top:14px; align-items:flex-start; }
+    #previewWrap { display:flex; gap:12px; margin-top:14px; align-items:flex-start; justify-content:center; }
     #previewCanvas {
-  width: 100%;
-  max-width: 900px;   /* don’t stretch too far on big monitors */
-  height: auto;       /* keep aspect ratio automatically */
-  aspect-ratio: 4 / 3; /* forces 4:3 proportion like a camera */
-  background: #000;
-  border-radius: 10px;
-  border: 2px solid #0b1b2a;
-  object-fit: cover;
-}
+      width: 100%;
+      max-width: 900px;
+      height: auto;
+      aspect-ratio: 4 / 3;
+      background: #000;
+      border-radius: 10px;
+      border: 2px solid #0b1b2a;
+      object-fit: cover;
+      display:block;
+    }
 
-    #infoColumn { flex:1; min-width:240px; display:flex; flex-direction:column; gap:12px; }
-
-    /* object alerts list */
     .alerts { padding:12px; border-radius:10px; background:#061217; border:1px solid rgba(255,255,255,0.02); min-height:100px; color:var(--muted); }
     .alerts h4 { margin:0 0 6px 0; color:var(--accent); font-size:16px; }
     .alerts ul { margin:0; padding-left:18px; font-size:16px; color:var(--muted); }
@@ -104,10 +87,9 @@
 
     footer { margin-top:14px; color:var(--muted); font-size:13px; text-align:center; }
 
-    /* visually-hidden for sr-only text */
     .visually-hidden { position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
     @media (max-width:760px){
-      #previewCanvas { width:100%; height:200px; }
+      #previewCanvas { width:100%; height:260px; }
       .controls { gap:8px; }
       .btn { min-width:120px; font-size:18px; height:56px; }
     }
@@ -128,96 +110,78 @@
       </div>
     </header>
 
-   <!-- Keep color filter + detect toggle up top -->
-<div class="controls" role="region" aria-label="Settings">
-  <select id="colorFilter" class="select" aria-label="Filter QR color. Choose Any, Red, Green or Blue">
-    <option>Any</option><option>Red</option><option>Green</option><option>Blue</option>
-  </select>
+   <div class="controls" role="region" aria-label="Settings">
+    <select id="colorFilter" class="select" aria-label="Filter QR color. Choose Any, Red, Green or Blue">
+      <option>Any</option><option>Red</option><option>Green</option><option>Blue</option>
+    </select>
 
-  <label style="display:flex; align-items:center; gap:8px; margin-left:6px; color:var(--muted); font-size:16px;">
-    <input type="checkbox" id="enableDetect" checked aria-label="Enable object detection"> Enable Object Detection
-  </label>
-</div>
+    <label style="display:flex; align-items:center; gap:8px; margin-left:6px; color:var(--muted); font-size:16px;">
+      <input type="checkbox" id="enableDetect" checked aria-label="Enable object detection"> Enable Object Detection
+    </label>
+   </div>
 
-    <!-- Status + Object Alerts side by side -->
-<div class="statusBox" role="status" aria-live="polite">
-  <div id="leftStatus">
-    <div id="overlayText">Ready — Start Scan to begin. Voice input will be started automatically when needed.</div>
-    <div id="srAnnounce" aria-live="polite" role="log">Status messages will be read aloud.</div>
-    <div id="listeningBox" aria-hidden="true"></div>
-    <div class="scan-progress" aria-hidden="false">
-      <div id="progressRed" class="progress-pill" role="status">Red QR: Not found</div>
-      <div id="progressGreen" class="progress-pill" role="status">Green QR: Not found</div>
-      <div id="progressBlue" class="progress-pill" role="status">Blue QR: Not found</div>
-    </div>
-  </div>
-
-  <!-- Object Alerts moved here -->
-  <div id="alertsPanel">
-    <div class="alerts" aria-live="polite">
-      <h4>Object Alerts</h4>
-      <ul id="alertsList"><li>No recent alerts</li></ul>
-    </div>
-  </div>
-</div>
-
-<!-- Big camera preview centered -->
-<div id="previewWrap">
-  <canvas id="previewCanvas" width="800" height="600" aria-label="Camera preview for sighted helper"></canvas>
-</div>
-
-
-    <div id="log" aria-live="polite" role="log"></div>
-
-    <div class="map-modal" id="mapModal" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
-      <div class="box">
-        <h3 id="mapTitle">Map Preview</h3>
-        <canvas id="mapCanvas" width="900" height="600"></canvas>
-        <div style="text-align:right; margin-top:8px;">
-          <button id="closeMap" class="btn secondary" aria-label="Close map">Close</button>
-        </div>
+   <div class="statusBox" role="status" aria-live="polite">
+    <div id="leftStatus">
+      <div id="overlayText">Ready — Start Scan to begin. Voice input will be started automatically when needed.</div>
+      <div id="srAnnounce" aria-live="polite" role="log">Status messages will be read aloud.</div>
+      <div id="listeningBox" aria-hidden="true"></div>
+      <div class="scan-progress" aria-hidden="false">
+        <div id="progressRed" class="progress-pill" role="status">Red QR: Not found</div>
+        <div id="progressGreen" class="progress-pill" role="status">Green QR: Not found</div>
+        <div id="progressBlue" class="progress-pill" role="status">Blue QR: Not found</div>
       </div>
     </div>
 
-    <!-- Main Controls pinned at bottom -->
-    <div class="controls main-controls" role="region" aria-label="Main controls">
-      <div class="controls-row">
-        <button id="startBtn" class="btn green" aria-pressed="false" aria-label="Start scanning for QR codes (S)">Start Scan</button>
-        <button id="stopBtn" class="btn red" aria-pressed="false" aria-label="Stop scanning (Space)">Stop Scan</button>
-        <button id="voiceDestBtn" class="btn yellow" aria-label="Voice destination input (V)">Voice Destination</button>
-      </div>
-
-      <div class="controls-row">
-        <button id="restartBtn" class="btn grey" aria-label="Restart scanner (R)">Restart</button>
-        <button id="mapBtn" class="btn grey" aria-label="Show map (M)">Show Map</button>
+    <div id="alertsPanel">
+      <div class="alerts" aria-live="polite">
+        <h4>Object Alerts</h4>
+        <ul id="alertsList"><li>No recent alerts</li></ul>
       </div>
     </div>
+   </div>
 
-    <footer>Built for visually impaired users — spoken prompts, vibration and object alerts help navigation.</footer>
+   <div id="previewWrap">
+     <canvas id="previewCanvas" width="800" height="600" aria-label="Camera preview for sighted helper"></canvas>
+   </div>
+
+   <div id="log" aria-live="polite" role="log"></div>
+
+   <div class="map-modal" id="mapModal" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
+     <div class="box">
+       <h3 id="mapTitle">Map Preview</h3>
+       <canvas id="mapCanvas" width="900" height="600"></canvas>
+       <div style="text-align:right; margin-top:8px;">
+         <button id="closeMap" class="btn secondary" aria-label="Close map">Close</button>
+       </div>
+     </div>
+   </div>
+
+   <div class="controls main-controls" role="region" aria-label="Main controls">
+     <div class="controls-row">
+       <button id="startBtn" class="btn green" aria-pressed="false" aria-label="Start scanning for QR codes (S)">Start Scan</button>
+       <button id="stopBtn" class="btn red" aria-pressed="false" aria-label="Stop scanning (Space)">Stop Scan</button>
+       <button id="voiceDestBtn" class="btn yellow" aria-label="Voice destination input (V)">Voice Destination</button>
+     </div>
+
+     <div class="controls-row">
+       <button id="restartBtn" class="btn grey" aria-label="Restart scanner (R)">Restart</button>
+       <button id="mapBtn" class="btn grey" aria-label="Show map (M)">Show Map</button>
+     </div>
+   </div>
+
+   <footer>Built for visually impaired users — spoken prompts, vibration and object alerts help navigation.</footer>
   </div>
 
 <script>
 /* ---------------------------
-   Accessible announce wrapper
+   small helpers & DOM
    --------------------------- */
 const overlayText = document.getElementById('overlayText');
 const srAnnounce = document.getElementById('srAnnounce');
-function announce(text, interrupt=false) {
-  overlayText.textContent = text;
-  srAnnounce.textContent = text;
-  TTS.speak(text, interrupt);
-  log(`[ANNOUNCE] ${text}`);
-}
-
-/* ---------------------------
-   DOM elements & preview
-   --------------------------- */
 const previewCanvas = document.getElementById('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true });
-const canvasDisp = document.createElement('canvas'); // hidden processing canvas
+const canvasDisp = document.createElement('canvas');
 const ctxDisp = canvasDisp.getContext('2d', { willReadFrequently: true });
-
-const resultEl = document.getElementById('result');
 const logEl = document.getElementById('log');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
@@ -237,173 +201,242 @@ const alertsList = document.getElementById('alertsList');
 const log = (m) => { console.log(m); const t = new Date().toLocaleTimeString(); logEl.innerText += `[${t}] ${m}\n`; logEl.scrollTop = logEl.scrollHeight; };
 
 /* ---------------------------
-   Config & state
+   state
    --------------------------- */
-const SCAN_SIZE = 320;
+const SCAN_SIZE = 360;
 let scanBox = { x: 0, y: 0, size: SCAN_SIZE };
 let cvReady = false, animationFrameId = null, stream = null, scannerRunning = false;
 let foundResults = new Map(), scanStartTime = Date.now(), currentLocation = null, currentNavigationTarget = null;
 let latestDetections = [], actionsTriggered = false;
 
-/* ---------------------------
-   Object detection globals
-   --------------------------- */
 let cocoModel = null, cocoReady = false;
 const DETECTION_INTERVAL_MS = 900, SCORE_THRESHOLD = 0.45, CENTER_TOLERANCE = 0.25;
 const DISTANCE_ESTIMATE_SCALE = 1.6; let lastDetectTime = 0;
 const alertCooldown = 3000; const lastAlertAt = {};
 const HARMFUL_CLASSES = new Set(['person','chair','couch','bench','dining table','stop sign','tv','suitcase','backpack','bed','toilet']);
 
-/* ---------------------------
-   user gesture (some browsers)
-   --------------------------- */
 let userGesturePerformed = false;
 
 /* ---------------------------
-   Graph & helpers (unchanged)
-   --------------------------- */
-const node_coords = {
-  "Female Toilet (NGT1)": [2009, 1357],
-  "Male Toilet (NGT2)": [1955, 1357],
-  "N001 (backdoor)": [2100, 1135],
-  "N001": [1907, 1121],
-  "N002": [1651, 1097],
-  "N003": [1387, 1074],
-  "N004": [892, 1097],
-  "N005": [638, 1115],
-  "N006": [383, 1139],
-  "N007": [127, 1158],
-  "N008": [4, 1330],
-  "Female Toilet (NGT5)": [357, 1350],
-  "Male Toilet (NGT4)": [403, 1351],
-  "N009": [492, 1330],
-  "N010": [822, 1335],
-  "N011": [1251, 1340],
-  "N012": [1597, 1340],
-};
-
-const graph_raw = {
-  "Female Toilet (NGT1)": {"Male Toilet (NGT2)": 1.89},
-  "N001": {"Female Toilet (NGT1)": 9.00, "N001 (backdoor)": 6.77, "N002": 9.00},
-  "N002": {"N003": 9.28},
-  "N003": {"N004": 17.35},
-  "N004": {"N005": 8.91},
-  "N005": {"N006": 8.97},
-  "N006": {"Male Toilet (NGT4)": 7.45, "Female Toilet (NGT5)": 7.44, "N007": 8.99},
-  "N007": {"N008": 7.40},
-  "N008": {"Female Toilet (NGT5)": 12.38},
-  "Female Toilet (NGT5)": {"Male Toilet (NGT4)": 1.61},
-  "Male Toilet (NGT4)": {"N009": 3.20},
-  "N009": {"N010": 11.55},
-  "N010": {"N011": 15.02},
-  "N011": {"N012": 12.11},
-  "N012": {"Male Toilet (NGT2)": 12.55}
-};
-function add_bidirectional_edges(graph_in) {
-  const new_graph = {};
-  for (const k in graph_in) new_graph[k] = {};
-  for (const from in graph_in) {
-    for (const to in graph_in[from]) {
-      const w = graph_in[from][to];
-      new_graph[from][to] = w;
-      if (!new_graph[to]) new_graph[to] = {};
-      new_graph[to][from] = w;
-    }
-  }
-  return new_graph;
-}
-const graph = add_bidirectional_edges(graph_raw);
-
-function dijkstra(gr, start, end) {
-  const pq = new MinHeap();
-  pq.push({cost:0,node:start,path:[]});
-  const visited = new Set();
-  while (!pq.empty()) {
-    const item = pq.pop();
-    const {cost, node, path} = item;
-    if (visited.has(node)) continue;
-    const newPath = path.concat([node]);
-    visited.add(node);
-    if (node === end) return {path:newPath, cost};
-    const neighbors = gr[node] || {};
-    for (const nb in neighbors) {
-      if (!visited.has(nb)) pq.push({cost: cost + neighbors[nb], node: nb, path: newPath});
-    }
-  }
-  return {path:[], cost: Infinity};
-}
-class MinHeap {
-  constructor(){ this.a = []; }
-  push(x){ this.a.push(x); this._siftUp(); }
-  pop(){ if(this.a.length===0) return null; const r=this.a[0]; const last=this.a.pop(); if(this.a.length) { this.a[0]=last; this._siftDown(); } return r; }
-  empty(){ return this.a.length===0; }
-  _siftUp(){ let i=this.a.length-1; while(i>0){ let p=Math.floor((i-1)/2); if(this.a[p].cost<=this.a[i].cost) break; [this.a[p],this.a[i]]=[this.a[i],this.a[p]]; i=p; } }
-  _siftDown(){ let i=0; const n=this.a.length; while(true){ let l=i*2+1; let r=i*2+2; let smallest=i; if(l<n && this.a[l].cost < this.a[smallest].cost) smallest=l; if(r<n && this.a[r].cost < this.a[smallest].cost) smallest=r; if(smallest===i) break; [this.a[i],this.a[smallest]]=[this.a[smallest],this.a[i]]; i=smallest; } }
-}
-function get_turn_direction(p1,p2,p3) {
-  const v1 = [p2[0]-p1[0], p2[1]-p1[1]];
-  const v2 = [p3[0]-p2[0], p3[1]-p2[1]];
-  const raw = (Math.atan2(v2[1], v2[0]) - Math.atan2(v1[1], v1[0])) * 180/Math.PI;
-  const angle = (raw + 360) % 360;
-  if (angle < 45 || angle > 315) return "Move straight";
-  if (angle >= 45 && angle < 135) return "Turn right";
-  if (angle >= 135 && angle < 225) return "Turn back";
-  return "Turn left";
-}
-function get_initial_direction_simple(p1,p2) {
-  const dx = p2[0]-p1[0], dy = p2[1]-p1[1];
-  const angle = (Math.atan2(dy,dx) * 180/Math.PI + 360) % 360;
-  if (angle >= 315 || angle < 45) return "Move straight";
-  if (angle >= 45 && angle < 135) return "Turn right";
-  if (angle >= 135 && angle < 225) return "Turn back";
-  return "Turn left";
-}
-
-/* ---------------------------
-   TTS manager
+   TTS simple queue
    --------------------------- */
 const TTS = {
-  queue: [],
-  speaking: false,
+  queue: [], speaking: false,
   speak(text, interrupt=false) {
-    if (!text) return;
-    if (interrupt) {
-      this.queue = [];
-      if (speechSynthesis.speaking) speechSynthesis.cancel();
-    }
-    this.queue.push(text);
-    this._maybeSpeak();
+    if(!text) return;
+    if(interrupt){ this.queue=[]; if (speechSynthesis.speaking) speechSynthesis.cancel(); }
+    this.queue.push(text); this._maybeSpeak();
   },
   _maybeSpeak() {
-    if (this.speaking) return;
+    if(this.speaking) return;
     const next = this.queue.shift();
-    if (!next) return;
+    if(!next) return;
     this.speaking = true;
-    const utt = new SpeechSynthesisUtterance(next);
-    utt.rate = 1.0;
+    const utt = new SpeechSynthesisUtterance(next); utt.rate = 1.0;
     utt.onend = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
     utt.onerror = () => { this.speaking = false; setTimeout(()=>this._maybeSpeak(), 80); };
     speechSynthesis.speak(utt);
   }
 };
+function announce(text, interrupt=false) {
+  overlayText.textContent = text;
+  srAnnounce.textContent = text;
+  TTS.speak(text, interrupt);
+  log(`[ANNOUNCE] ${text}`);
+}
 
 /* ---------------------------
    Speech recognition availability
    --------------------------- */
 let SR_AVAILABLE = false;
-try {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRecognition) SR_AVAILABLE = true;
-} catch(e){ SR_AVAILABLE=false; }
+try { const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (SpeechRecognition) SR_AVAILABLE = true; } catch(e){ SR_AVAILABLE=false; }
 
 /* ---------------------------
-   Color detection functions (same)
+   Color processing & QR detection
    --------------------------- */
-// (functions omitted here in comment block — included earlier in full file)
 
-/* Implemented earlier: createColorMask, extractColorChannel, enhanceBlueContrast, detectWithOpenCV, detect_colored_qr_in_frame_js */
+/* createColorMask: produce an ImageData mask highlighting pixels of a specific color */
+function createColorMask(imageData, color) {
+  const data = imageData.data;
+  const w = imageData.width, h = imageData.height;
+  const out = new Uint8ClampedArray(data.length);
+  let colorPixels = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    let hit = false;
+    if (color === 'red') {
+      hit = (r > g + 25 && r > b + 25 && r > 90) || (r > 140 && r > g * 1.3 && r > b * 1.3);
+    } else if (color === 'green') {
+      hit = (g > r + 25 && g > b + 25 && g > 90) || (g > 140 && g > r * 1.2 && g > b * 1.2);
+    } else if (color === 'blue') {
+      hit = (b > r + 20 && b > g + 20 && b > 70) || (b > 110 && b > r * 1.05 && b > g * 1.05);
+    }
+    if (hit) {
+      out[i] = 255; out[i+1] = 255; out[i+2] = 255; out[i+3] = 255;
+      colorPixels++;
+    } else {
+      out[i] = 0; out[i+1] = 0; out[i+2] = 0; out[i+3] = 255;
+    }
+  }
+  return new ImageData(out, w, h);
+}
 
-// For brevity in this generated file the functions are the same as before — they are present above in the user's original code. 
+/* extractColorChannel: boost the chosen channel and return a grayscale-like ImageData */
+function extractColorChannel(imageData, channel) {
+  const data = imageData.data;
+  const out = new Uint8ClampedArray(data.length);
+  for (let i=0;i<data.length;i+=4){
+    const r = data[i], g = data[i+1], b = data[i+2];
+    let intensity = 0;
+    if (channel === 'red') intensity = r;
+    else if (channel === 'green') intensity = g;
+    else intensity = Math.max(b, Math.floor((b*1.6 + Math.max(r,g)*0.2)));
+    intensity = Math.min(255, Math.max(0, intensity));
+    out[i] = out[i+1] = out[i+2] = intensity;
+    out[i+3] = 255;
+  }
+  return new ImageData(out, imageData.width, imageData.height);
+}
+
+/* enhanceBlueContrast: specific tweaks to help blue QR under low contrast */
+function enhanceBlueContrast(imageData) {
+  const data = imageData.data;
+  const out = new Uint8ClampedArray(data.length);
+  for (let i=0;i<data.length;i+=4){
+    const r = data[i], g = data[i+1], b = data[i+2];
+    let intensity = b;
+    if (b > r && b > g) intensity = Math.min(255, Math.round(b * 1.8));
+    else if (b > 70) intensity = Math.min(255, Math.round(b * 1.3));
+    else intensity = Math.round((r+g+b)/3 * 0.55);
+    out[i]=out[i+1]=out[i+2]=intensity; out[i+3]=255;
+  }
+  return new ImageData(out, imageData.width, imageData.height);
+}
+
+/* detectWithOpenCV: convert to HSV and mask (returns ImageData or null on error) */
+function detectWithOpenCV(imageData, color) {
+  if (!cvReady) return null;
+  try {
+    const src = cv.matFromImageData(imageData);
+    const rgb = new cv.Mat();
+    cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+    const hsv = new cv.Mat();
+    cv.cvtColor(rgb, hsv, cv.COLOR_RGB2HSV);
+
+    const mask = new cv.Mat();
+    if (color === 'red') {
+      const lower1 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [0, 80, 40, 0]);
+      const upper1 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [10, 255, 255, 255]);
+      const lower2 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [170, 80, 40, 0]);
+      const upper2 = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [180, 255, 255, 255]);
+      const m1 = new cv.Mat(), m2 = new cv.Mat();
+      cv.inRange(hsv, lower1, upper1, m1);
+      cv.inRange(hsv, lower2, upper2, m2);
+      cv.add(m1, m2, mask);
+      m1.delete(); m2.delete(); lower1.delete(); upper1.delete(); lower2.delete(); upper2.delete();
+    } else if (color === 'green') {
+      const low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [35, 60, 40, 0]);
+      const high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [85, 255, 255, 255]);
+      cv.inRange(hsv, low, high, mask);
+      low.delete(); high.delete();
+    } else { // blue
+      const low = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [90, 40, 30, 0]);
+      const high = new cv.Mat(hsv.rows, hsv.cols, hsv.type(), [140, 255, 255, 255]);
+      cv.inRange(hsv, low, high, mask);
+      low.delete(); high.delete();
+    }
+
+    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3,3));
+    cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
+    cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, kernel);
+    const rgba = new cv.Mat();
+    cv.cvtColor(mask, rgba, cv.COLOR_GRAY2RGBA);
+
+    const out = new ImageData(new Uint8ClampedArray(rgba.data), rgba.cols, rgba.rows);
+
+    src.delete(); rgb.delete(); hsv.delete(); mask.delete(); kernel.delete(); rgba.delete();
+    return out;
+  } catch (e) {
+    console.warn("OpenCV detect failed:", e);
+    return null;
+  }
+}
+
+/* detect_colored_qr_in_frame_js: main detection strategy combining methods */
+function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
+  const COLORS = ['red','green','blue'];
+  for (const color of COLORS) {
+    if (targetColor && color !== targetColor) continue;
+    // 1) Try enhanced channel (fast)
+    try {
+      const chImg = extractColorChannel(imageData, color);
+      const code = jsQR(chImg.data, chImg.width, chImg.height, { inversionAttempts: 'attemptBoth' });
+      if (code && code.data) {
+        let boxArea = null;
+        if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
+          const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
+          const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
+          boxArea = Math.abs(w*h);
+        }
+        return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Enhanced-Channel', location: code.location || null, boxArea };
+      }
+    } catch(e){ console.warn('Enhanced channel decode error', color, e); }
+
+    // 2) For blue: try color mask approach (helps when QR is on colored background)
+    if (color === 'blue') {
+      try {
+        const maskImg = createColorMask(imageData, color);
+        const code = jsQR(maskImg.data, maskImg.width, maskImg.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          let boxArea = null;
+          if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
+            const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
+            const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
+            boxArea = Math.abs(w*h);
+          }
+          return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Color-Mask', location: code.location || null, boxArea };
+        }
+      } catch(e){ console.warn('Color mask decode error', color, e); }
+    }
+
+    // 3) If OpenCV available, try HSV masking then decode
+    if (cvReady) {
+      try {
+        const cvProcessed = detectWithOpenCV(imageData, color);
+        if (cvProcessed) {
+          const code = jsQR(cvProcessed.data, cvProcessed.width, cvProcessed.height, { inversionAttempts: 'attemptBoth' });
+          if (code && code.data) {
+            let boxArea = null;
+            if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
+              const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
+              const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
+              boxArea = Math.abs(w*h);
+            }
+            return { found: true, decoded: code.data.trim(), colorFound: color, method: 'OpenCV-HSV', location: code.location || null, boxArea };
+          }
+        }
+      } catch(e){ console.warn('OpenCV approach failed for', color, e); }
+    }
+
+    // 4) For blue try the special contrast enhancer
+    if (color === 'blue') {
+      try {
+        const enhanced = enhanceBlueContrast(imageData);
+        const code = jsQR(enhanced.data, enhanced.width, enhanced.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          let boxArea = null;
+          if (code.location && code.location.topLeftCorner && code.location.bottomRightCorner) {
+            const w = Math.hypot(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.topRightCorner.y - code.location.topLeftCorner.y);
+            const h = Math.hypot(code.location.bottomLeftCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
+            boxArea = Math.abs(w*h);
+          }
+          return { found: true, decoded: code.data.trim(), colorFound: color, method: 'Blue-Enhanced', location: code.location || null, boxArea };
+        }
+      } catch(e){ console.warn('Blue enhancement failed', e); }
+    }
+  }
+  return { found: false };
+}
 
 /* ---------------------------
    Progress UI update
@@ -421,7 +454,8 @@ function updateProgressDisplay() {
     }
   });
   const foundCount = foundResults.size;
-  announce(`${foundCount} of 3 QR codes found.`, false);
+  // announce lightly - do not spam repeated messages
+  if (foundCount > 0) announce(`${foundCount} of 3 QR codes found.`, false);
 }
 
 /* ---------------------------
@@ -455,7 +489,7 @@ function vibrateArrival() {
 }
 
 /* ---------------------------
-   Camera start/stop
+   Camera start/stop & loop
    --------------------------- */
 async function startCamera() {
   try {
@@ -466,20 +500,24 @@ async function startCamera() {
     video.autoplay = true; video.playsInline = true; video.muted = true;
     video.srcObject = stream;
     await video.play();
-    // set processing canvas to video size
-    canvasDisp.width = video.videoWidth; canvasDisp.height = video.videoHeight;
-    previewCanvas.width = Math.min(1280, video.videoWidth);
-    previewCanvas.height = Math.min(720, video.videoHeight);
-    scanBox.x = Math.floor((canvasDisp.width - SCAN_SIZE)/2);
-    scanBox.y = Math.floor((canvasDisp.height - SCAN_SIZE)/2);
+
+    canvasDisp.width = video.videoWidth || 1280;
+    canvasDisp.height = video.videoHeight || 720;
+    previewCanvas.width = Math.min(1280, canvasDisp.width);
+    previewCanvas.height = Math.min(720, canvasDisp.height);
+
+    // centre scan box
+    scanBox.size = Math.min(SCAN_SIZE, Math.floor(Math.min(canvasDisp.width, canvasDisp.height) * 0.5));
+    scanBox.x = Math.floor((canvasDisp.width - scanBox.size)/2);
+    scanBox.y = Math.floor((canvasDisp.height - scanBox.size)/2);
+
     scanStartTime = Date.now();
     foundResults.clear();
     actionsTriggered = false;
     scannerRunning = true;
-    // copy frames by attaching video to processing loop closure
     announce("Camera started. Scanning for QR codes. Point the phone at the QR.", true);
     updateProgressDisplay();
-    processFrame(video); // pass video element into loop
+    processFrame(video);
     startBtn.setAttribute('aria-pressed','true');
     userGesturePerformed = true;
     return true;
@@ -499,83 +537,47 @@ function stopCamera() {
 }
 
 /* ---------------------------
-   Load coco model
+   Load coco model (async)
    --------------------------- */
 async function loadCocoModel() {
   try {
-    announce("Loading object detection model. This may take a moment.", false);
     log("Loading coco-ssd...");
     cocoModel = await cocoSsd.load();
     cocoReady = true;
-    announce("Object detection ready.", false);
     log("coco-ssd loaded");
   } catch(e) {
     cocoReady = false;
     log("coco load failed: " + e);
-    announce("Object detection failed to load.", false);
   }
 }
 loadCocoModel();
 
 /* ---------------------------
-   Speech recognition helper
-   --------------------------- */
-function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInterim=null} = {}) {
-  return new Promise((resolve) => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { resolve(null); return; }
-    let recognition;
-    try { recognition = new SR(); } catch(e) { resolve(null); return; }
-    recognition.lang = lang; recognition.interimResults = interim; recognition.maxAlternatives = 3;
-    let finalTranscript = '';
-    let resolved = false;
-    const timer = setTimeout(() => {
-      if (!resolved) { resolved = true; try { recognition.stop(); } catch(e){}; resolve(null); }
-    }, timeout);
-    recognition.onresult = (evt) => {
-      const results = Array.from(evt.results);
-      const interimText = results.map(r => r[0].transcript).join(' ');
-      if (onInterim) onInterim(interimText);
-      for (const r of results) { if (r.isFinal) finalTranscript = r[0].transcript; }
-      if (finalTranscript && !resolved) { resolved = true; clearTimeout(timer); try { recognition.stop(); } catch(e){}; resolve(finalTranscript.trim()); }
-    };
-    recognition.onend = () => {
-      if (resolved) return;
-      resolved = true; clearTimeout(timer); resolve(finalTranscript ? finalTranscript.trim() : null);
-    };
-    recognition.onerror = (e) => {
-      if (resolved) return;
-      resolved = true; clearTimeout(timer); try { recognition.stop(); } catch(err){}; resolve(null);
-    };
-    try { recognition.start(); } catch(e) { clearTimeout(timer); resolve(null); }
-  });
-}
-
-/* ---------------------------
-   Utility to draw boxes for detections on preview canvas
+   Draw helper for preview and overlays
    --------------------------- */
 function drawPreviewFrame(tmpCanvas) {
-  // tmpCanvas contains full frame with scan box drawn already
-  // Scale draw onto previewCanvas while preserving aspect
   try {
     previewCtx.clearRect(0,0,previewCanvas.width, previewCanvas.height);
     previewCtx.drawImage(tmpCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
 
+    // overlay scan box (scaled)
+    const sx = previewCanvas.width / tmpCanvas.width;
+    const sy = previewCanvas.height / tmpCanvas.height;
+    previewCtx.strokeStyle = 'rgba(0,255,128,0.9)';
+    previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
+    previewCtx.strokeRect(Math.round(scanBox.x*sx), Math.round(scanBox.y*sy), Math.round(scanBox.size*sx), Math.round(scanBox.size*sy));
+
     // overlay object detections
-    if (latestDetections && latestDetections.length) {
+    if (latestDetections && latestDetections.length && enableDetectCheckbox.checked) {
       previewCtx.save();
       previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
       for (const d of latestDetections) {
         const [x,y,w,h] = d.bbox;
-        // scale from processing canvas to previewCanvas
-        const sx = previewCanvas.width / canvasDisp.width;
-        const sy = previewCanvas.height / canvasDisp.height;
         const rx = Math.round(x * sx), ry = Math.round(y * sy), rw = Math.round(w * sx), rh = Math.round(h * sy);
         previewCtx.strokeStyle = 'rgba(255,80,80,0.95)';
         previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
         previewCtx.beginPath();
         previewCtx.strokeRect(rx, ry, rw, rh);
-        // label background
         const label = `${d.class} ${(d.score*100).toFixed(0)}%`;
         previewCtx.font = `${14}px Arial`;
         const tw = previewCtx.measureText(label).width + 10;
@@ -593,27 +595,31 @@ function drawPreviewFrame(tmpCanvas) {
    Processing loop (QR + Object detection)
    --------------------------- */
 let qrDecoderBusy = false, frameSkipCounter = 0;
-
 async function processFrame(video){
   if (!scannerRunning) return;
   animationFrameId = requestAnimationFrame(()=>processFrame(video));
   if (!video || video.readyState < 2) return;
-  frameSkipCounter++;
-  if (frameSkipCounter % 3 !== 0 && foundResults.size < 3) return;
 
-  // draw video to processing canvas
-  canvasDisp.width = video.videoWidth; canvasDisp.height = video.videoHeight;
+  frameSkipCounter++;
+  if (frameSkipCounter % 2 !== 0 && foundResults.size < 3) return;
+
+  // ensure canvas sizes
+  canvasDisp.width = video.videoWidth || canvasDisp.width;
+  canvasDisp.height = video.videoHeight || canvasDisp.height;
+
+  // draw frame into processing canvas
   ctxDisp.drawImage(video, 0, 0, canvasDisp.width, canvasDisp.height);
 
-  // create temporary preview canvas (for sighted helper) and draw scan box
+  // create temporary preview canvas for sighted helper
   const tmp = document.createElement('canvas');
   tmp.width = canvasDisp.width; tmp.height = canvasDisp.height;
   const tmpCtx = tmp.getContext('2d');
   tmpCtx.drawImage(canvasDisp, 0, 0);
-  tmpCtx.strokeStyle = '#00ff00'; tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
+  // draw centered scan box (for sighted helper)
+  tmpCtx.strokeStyle = '#00ff88'; tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
   tmpCtx.strokeRect(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
 
-  // if object detection boxes exist, we draw them here on tmp (scaled later)
+  // if object detection boxes exist, draw them on tmp for scaling later
   if (latestDetections && latestDetections.length > 0 && enableDetectCheckbox.checked) {
     tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
     for (const d of latestDetections) {
@@ -630,7 +636,7 @@ async function processFrame(video){
     }
   }
 
-  // draw to visible preview (with boxes)
+  // draw to visible preview
   drawPreviewFrame(tmp);
 
   if (qrDecoderBusy) return;
@@ -638,6 +644,7 @@ async function processFrame(video){
 
   setTimeout(async () => {
     try {
+      // read scan area image data
       const imageData = ctxDisp.getImageData(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
       const targetFilter = (colorFilterEl.value === "Any") ? null : colorFilterEl.value.toLowerCase();
       const colorOrder = targetFilter ? [targetFilter] : ['blue','red','green'];
@@ -686,9 +693,11 @@ async function processFrame(video){
             return { class: p.class, score: p.score, bbox: [x*scaleBack, y*scaleBack, w*scaleBack, h*scaleBack] };
           });
 
-          // update alerts list (top 3)
+          // update alerts list
           if (latestDetections.length) {
             updateAlertsList(latestDetections.slice(0,4));
+          } else {
+            updateAlertsList([]);
           }
 
           // choose harmful candidate for voice alert
@@ -755,167 +764,7 @@ function updateAlertsList(dets) {
 }
 
 /* ---------------------------
-   After 3 QRs found - auto follow-up
-   --------------------------- */
-function triggerAllActionsOnce(){
-  if (actionsTriggered) return; actionsTriggered = true;
-  log("All three color QR codes detected");
-  announce("All QR codes detected. Processing information now.", true);
-  const greenQR = foundResults.get('green')?.decoded || '';
-  const blueQR = foundResults.get('blue')?.decoded || '';
-  const redQR = foundResults.get('red')?.decoded || '';
-  stopCamera();
-  setTimeout(()=>{ log("Map info: " + greenQR); announce("Map information available.", false); drawMap(); mapModal.style.display = 'flex'; }, 700);
-  setTimeout(()=>{ log("Accessibility: " + blueQR); announce("Accessibility information: " + blueQR, false); }, 1500);
-  setTimeout(()=>{ currentLocation = redQR; log("Current location: " + redQR); announce("Your current location is " + redQR, false); }, 2500);
-  // IMPORTANT: do NOT ask user to press Voice button — start voice listening automatically (best-effort)
-  setTimeout(()=>{ if (SR_AVAILABLE) { announce("I will listen for your destination now.", true); ask_destination_via_voice(); } else { show_destination_modal(); } }, 3600);
-}
-
-/* ---------------------------
-   Destination selection & voice handling
-   --------------------------- */
-function show_destination_modal() {
-  if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
-  const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
-  const candidateList = candidates.map((p,i)=>`${i+1}. ${p}`).join('\n');
-  announce("Opening text selection. Check the screen for options.", false);
-  const dest = prompt(`Current: ${currentLocation}\nAvailable:\n${candidateList}\n\nType name or number:`);
-  if (!dest) { announce("No destination selected.", false); return; }
-  let destination = dest.trim();
-  const destNumber = parseInt(destination);
-  if (!isNaN(destNumber) && destNumber >=1 && destNumber <= candidates.length) {
-    destination = candidates[destNumber-1];
-  } else {
-    const best = findBestLocationMatch(destination, candidates);
-    if (best) destination = best;
-    else { announce("Destination not found. Please try voice input.", false); setTimeout(()=>ask_destination_via_voice(), 600); return; }
-  }
-  announce(`You selected ${destination}. Confirming.`, false);
-  if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
-  else { announce("Selection cancelled. Try again.", false); setTimeout(()=>show_destination_modal(), 500); }
-}
-
-function findBestLocationMatch(input, candidates) {
-  const s = input.toLowerCase().trim();
-  let m = candidates.find(c=>c.toLowerCase()===s);
-  if (m) return m;
-  m = candidates.find(c=>c.toLowerCase().includes(s));
-  if (m) return m;
-  m = candidates.find(c=>c.toLowerCase().split(' ').some(word => s.includes(word) || word.includes(s)));
-  if (m) return m;
-  return null;
-}
-
-async function ask_destination_via_voice(){
-  if (!currentLocation) { announce("No current location. Scan first.", false); return; }
-  if (!SR_AVAILABLE) { announce("Speech recognition not available. Please use text input.", false); show_destination_modal(); return; }
-
-  // Try to start SR automatically (many browsers allow if started after a user gesture like Start Scan).
-  // If SR fails (returns null), we will gently ask for permission as a fallback.
-  let tries = 0;
-  while (tries < 4) {
-    tries++;
-    announce("Please say your destination after the beep.", true);
-    await new Promise(r=>setTimeout(r,700));
-    const interimBox = document.getElementById('listeningBox');
-    interimBox.style.display = 'block'; interimBox.textContent = "Listening… (speak now)";
-    const transcript = await startSpeechRecognition({lang:'en-US', interim:true, timeout:9000, onInterim:(t)=>{ interimBox.textContent = "Listening… " + t; }});
-    interimBox.textContent = '';
-    if (!transcript) {
-      log("No transcript");
-      if (!userGesturePerformed && tries === 1) {
-        announce("I could not access the microphone automatically. If you allow microphone access, press the Voice Destination button once. Then speak after the beep.", false);
-        voiceDestBtn.classList.add('secondary');
-        await new Promise(r=>setTimeout(r,1500));
-        continue;
-      }
-      announce("I didn't catch that. Let's try again.", false);
-      continue;
-    }
-    log("Recognized: " + transcript);
-    const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
-    const bestMatch = findBestLocationMatch(transcript, candidates);
-    if (!bestMatch) { announce("I couldn't find that location. Please say your destination again.", false); continue; }
-
-    announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
-    await new Promise(r=>setTimeout(r,600));
-    const conf = await startSpeechRecognition({lang:'en-US', interim:false, timeout:6000});
-    if (!conf) {
-      const ok = confirm(`Did you mean ${bestMatch}? Press OK for yes.`);
-      if (ok) { start_navigation(bestMatch); return; }
-      else { announce("Okay, let's try again.", false); continue; }
-    }
-    const settled = conf.toLowerCase();
-    log("Confirmation: " + settled);
-    if (settled.includes('yes') || settled.includes('yeah') || settled.includes('correct')) {
-      start_navigation(bestMatch); return;
-    } else {
-      announce("Okay, please say your destination again.", false);
-      continue;
-    }
-  }
-  announce("Voice input failed repeatedly. Please type destination instead.", false);
-  show_destination_modal();
-}
-
-/* ---------------------------
-   Navigation flow — simplified instructions
-   --------------------------- */
-function start_navigation(destination) {
-  if (!currentLocation) { announce("No current location. Scan QR codes first.", false); return; }
-  if (!destination) { announce("No destination selected.", false); return; }
-  const res = dijkstra(graph, currentLocation, destination);
-  if (!res.path.length || res.cost === Infinity) { announce("No path found to that destination.", false); alert("Routing error: no path found."); return; }
-  announce(`Navigation started to ${destination}. Total distance ${Math.round(res.cost)} meters.`, true);
-  navigationDialog(res.path, res.cost);
-}
-
-function navigationDialog(path, total_cost) {
-  let idx = 0;
-  currentNavigationTarget = path[path.length - 1];
-
-  async function showStep(){
-    if (idx >= path.length - 1) {
-      const finalText = `Approaching destination ${path[path.length - 1]}. Look for QR code to confirm arrival.`;
-      announce(finalText, true);
-      overlayText.textContent = `Final: Look for ${path[path.length - 1]} QR`;
-      setTimeout(()=>{ if (!scannerRunning) startCamera(); }, 1200);
-      return;
-    }
-
-    const current = path[idx];
-    const next = path[idx + 1];
-    const distance = (graph[current] && graph[current][next]) ? Math.round(graph[current][next]) : 0;
-    let dir = (idx === 0) ? get_initial_direction_simple(node_coords[current], node_coords[next]) : get_turn_direction(node_coords[path[idx-1]], node_coords[current], node_coords[next]);
-
-    // Construct short, clear instruction phrasing
-    let spoken;
-    if (dir === 'Move straight') {
-      spoken = `Move straight ${distance} meters to ${next}.`;
-    } else if (dir === 'Turn right') {
-      spoken = `Turn right towards ${next}. Then move ${distance} meters.`;
-    } else if (dir === 'Turn left') {
-      spoken = `Turn left towards ${next}. Then move ${distance} meters.`;
-    } else if (dir === 'Turn back') {
-      spoken = `Turn around. Then move ${distance} meters towards ${next}.`;
-    } else {
-      spoken = `${dir}. Then move ${distance} meters.`;
-    }
-
-    announce(spoken, false);
-    overlayText.textContent = `Step ${idx+1}: ${spoken}`;
-
-    // simple UI confirmation flow (keeps student-style dialog)
-    const ok = confirm(spoken + "\n\nPress OK for next step, Cancel to stop navigation.");
-    if (ok) { idx++; setTimeout(showStep, 700); }
-    else { announce("Navigation cancelled.", true); currentNavigationTarget = null; overlayText.textContent = "Navigation cancelled"; }
-  }
-  showStep();
-}
-
-/* ---------------------------
-   Arrival handling & QR decoded callback
+   Simple arrival/decoded handling (keeps your original behaviour)
    --------------------------- */
 function handleDecoded(decoded, color) {
   const decodedClean = decoded.trim();
@@ -948,8 +797,77 @@ function handleDecoded(decoded, color) {
 }
 
 /* ---------------------------
-   Map drawing — improved label placement to avoid overlap
+   After 3 QRs found
    --------------------------- */
+function triggerAllActionsOnce(){
+  if (actionsTriggered) return; actionsTriggered = true;
+  log("All three color QR codes detected");
+  announce("All QR codes detected. Processing information now.", true);
+  const greenQR = foundResults.get('green')?.decoded || '';
+  const blueQR = foundResults.get('blue')?.decoded || '';
+  const redQR = foundResults.get('red')?.decoded || '';
+  stopCamera();
+  setTimeout(()=>{ log("Map info: " + greenQR); announce("Map information available.", false); drawMap(); mapModal.style.display = 'flex'; }, 700);
+  setTimeout(()=>{ log("Accessibility: " + blueQR); announce("Accessibility information: " + blueQR, false); }, 1500);
+  setTimeout(()=>{ currentLocation = redQR; log("Current location: " + redQR); announce("Your current location is " + redQR, false); }, 2500);
+  setTimeout(()=>{ if (SR_AVAILABLE) { announce("I will listen for your destination now.", true); ask_destination_via_voice(); } else { show_destination_modal(); } }, 3600);
+}
+
+/* ---------------------------
+   Map drawing (keeps your improved label placement)
+   --------------------------- */
+const node_coords = {
+  "Female Toilet (NGT1)": [2009, 1357],
+  "Male Toilet (NGT2)": [1955, 1357],
+  "N001 (backdoor)": [2100, 1135],
+  "N001": [1907, 1121],
+  "N002": [1651, 1097],
+  "N003": [1387, 1074],
+  "N004": [892, 1097],
+  "N005": [638, 1115],
+  "N006": [383, 1139],
+  "N007": [127, 1158],
+  "N008": [4, 1330],
+  "Female Toilet (NGT5)": [357, 1350],
+  "Male Toilet (NGT4)": [403, 1351],
+  "N009": [492, 1330],
+  "N010": [822, 1335],
+  "N011": [1251, 1340],
+  "N012": [1597, 1340],
+};
+const graph_raw = {
+  "Female Toilet (NGT1)": {"Male Toilet (NGT2)": 1.89},
+  "N001": {"Female Toilet (NGT1)": 9.00, "N001 (backdoor)": 6.77, "N002": 9.00},
+  "N002": {"N003": 9.28},
+  "N003": {"N004": 17.35},
+  "N004": {"N005": 8.91},
+  "N005": {"N006": 8.97},
+  "N006": {"Male Toilet (NGT4)": 7.45, "Female Toilet (NGT5)": 7.44, "N007": 8.99},
+  "N007": {"N008": 7.40},
+  "N008": {"Female Toilet (NGT5)": 12.38},
+  "Female Toilet (NGT5)": {"Male Toilet (NGT4)": 1.61},
+  "Male Toilet (NGT4)": {"N009": 3.20},
+  "N009": {"N010": 11.55},
+  "N010": {"N011": 15.02},
+  "N011": {"N012": 12.11},
+  "N012": {"Male Toilet (NGT2)": 12.55}
+};
+function add_bidirectional_edges(graph_in) {
+  const new_graph = {};
+  for (const k in graph_in) new_graph[k] = {};
+  for (const from in graph_in) {
+    for (const to in graph_in[from]) {
+      const w = graph_in[from][to];
+      new_graph[from][to] = w;
+      if (!new_graph[to]) new_graph[to] = {};
+      new_graph[to][from] = w;
+    }
+  }
+  return new_graph;
+}
+const graph = add_bidirectional_edges(graph_raw);
+
+// map drawing function (same improved version from your original)
 function drawMap() {
   const ctx = mapCanvas.getContext('2d');
   ctx.clearRect(0,0,mapCanvas.width,mapCanvas.height);
@@ -964,7 +882,7 @@ function drawMap() {
     return [ margin + Math.floor(sx * (cw - margin * 2)), margin + Math.floor(sy * (ch - margin * 2)) ];
   };
 
-  // draw edges first
+  // draw edges
   ctx.strokeStyle = "#bbb"; ctx.lineWidth = 1;
   for (const a in graph) {
     for (const b in graph[a]) {
@@ -975,7 +893,7 @@ function drawMap() {
     }
   }
 
-  // prepare labels with collision avoidance
+  // labels
   const labels = [];
   ctx.font = "12px Arial";
   for (const name in node_coords) {
@@ -983,24 +901,19 @@ function drawMap() {
     const text = name;
     const padding = 6;
     const textW = Math.min(300, ctx.measureText(text).width);
-    let lx = p[0] + 8; // default right of node
+    let lx = p[0] + 8;
     let ly = p[1] - 6;
-    const labelH = 18; // approx
-
-    // ensure label within canvas bounds
-    if (lx + textW + padding*2 > cw - margin) lx = p[0] - textW - padding*2 - 8; // place left if not enough space
+    const labelH = 18;
+    if (lx + textW + padding*2 > cw - margin) lx = p[0] - textW - padding*2 - 8;
     if (lx < margin) lx = margin;
     if (ly < margin) ly = margin;
-
     labels.push({name, p, lx, ly, textW, labelH, padding});
   }
 
-  // simple overlap resolver: iterate and push any overlapping labels down
   for (let i = 0; i < labels.length; i++) {
     const a = labels[i];
     for (let j = 0; j < i; j++) {
       const b = labels[j];
-      // check vertical overlap of bounding boxes
       const aLeft = a.lx, aRight = a.lx + a.textW + a.padding*2;
       const aTop = a.ly, aBottom = a.ly + a.labelH + a.padding;
       const bLeft = b.lx, bRight = b.lx + b.textW + b.padding*2;
@@ -1008,35 +921,25 @@ function drawMap() {
       const overlapX = !(aRight < bLeft || aLeft > bRight);
       const overlapY = !(aBottom < bTop || aTop > bBottom);
       if (overlapX && overlapY) {
-        // push current label down until no overlap
         a.ly = bBottom + 4;
       }
     }
   }
 
-  // draw nodes and labels
   for (const lbl of labels) {
     const p = lbl.p;
-    // node marker
     if (lbl.name === currentLocation) {
       ctx.fillStyle = "#ff4444"; ctx.beginPath(); ctx.arc(p[0], p[1], 8, 0, Math.PI*2); ctx.fill();
     } else {
       ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI*2); ctx.fill();
     }
-
-    // label background (rounded rect)
     const bx = lbl.lx, by = lbl.ly - 4; const bw = lbl.textW + lbl.padding*2; const bh = lbl.labelH + lbl.padding/1.5;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     roundRect(ctx, bx, by, bw, bh, 6, true, false);
-    // label text
     ctx.fillStyle = '#000'; ctx.fillText(lbl.name, bx + lbl.padding, by + bh/1.35);
-
-    // connector line from node to label
     ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(bx + 4, by + bh/2); ctx.stroke();
   }
 }
-
-// helper for rounded rectangle
 function roundRect(ctx, x, y, w, h, r, fill, stroke) {
   if (typeof r === 'undefined') r = 5;
   ctx.beginPath();
@@ -1051,7 +954,203 @@ function roundRect(ctx, x, y, w, h, r, fill, stroke) {
 }
 
 /* ---------------------------
-   UI event handlers & keyboard shortcuts
+   Speech + destination helpers (kept)
+   --------------------------- */
+function show_destination_modal() {
+  if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
+  const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
+  const candidateList = candidates.map((p,i)=>`${i+1}. ${p}`).join('\n');
+  announce("Opening text selection. Check the screen for options.", false);
+  const dest = prompt(`Current: ${currentLocation}\nAvailable:\n${candidateList}\n\nType name or number:`);
+  if (!dest) { announce("No destination selected.", false); return; }
+  let destination = dest.trim();
+  const destNumber = parseInt(destination);
+  if (!isNaN(destNumber) && destNumber >=1 && destNumber <= candidates.length) {
+    destination = candidates[destNumber-1];
+  } else {
+    const best = findBestLocationMatch(destination, candidates);
+    if (best) destination = best;
+    else { announce("Destination not found. Please try voice input.", false); setTimeout(()=>ask_destination_via_voice(), 600); return; }
+  }
+  announce(`You selected ${destination}. Confirming.`, false);
+  if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
+  else { announce("Selection cancelled. Try again.", false); setTimeout(()=>show_destination_modal(), 500); }
+}
+function findBestLocationMatch(input, candidates) {
+  const s = input.toLowerCase().trim();
+  let m = candidates.find(c=>c.toLowerCase()===s);
+  if (m) return m;
+  m = candidates.find(c=>c.toLowerCase().includes(s));
+  if (m) return m;
+  m = candidates.find(c=>c.toLowerCase().split(' ').some(word => s.includes(word) || word.includes(s)));
+  if (m) return m;
+  return null;
+}
+function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInterim=null} = {}) {
+  return new Promise((resolve) => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { resolve(null); return; }
+    let recognition;
+    try { recognition = new SR(); } catch(e) { resolve(null); return; }
+    recognition.lang = lang; recognition.interimResults = interim; recognition.maxAlternatives = 3;
+    let finalTranscript = '';
+    let resolved = false;
+    const timer = setTimeout(() => {
+      if (!resolved) { resolved = true; try { recognition.stop(); } catch(e){}; resolve(null); }
+    }, timeout);
+    recognition.onresult = (evt) => {
+      const results = Array.from(evt.results);
+      const interimText = results.map(r => r[0].transcript).join(' ');
+      if (onInterim) onInterim(interimText);
+      for (const r of results) { if (r.isFinal) finalTranscript = r[0].transcript; }
+      if (finalTranscript && !resolved) { resolved = true; clearTimeout(timer); try { recognition.stop(); } catch(e){}; resolve(finalTranscript.trim()); }
+    };
+    recognition.onend = () => {
+      if (resolved) return;
+      resolved = true; clearTimeout(timer); resolve(finalTranscript ? finalTranscript.trim() : null);
+    };
+    recognition.onerror = (e) => {
+      if (resolved) return;
+      resolved = true; clearTimeout(timer); try { recognition.stop(); } catch(err){}; resolve(null);
+    };
+    try { recognition.start(); } catch(e) { clearTimeout(timer); resolve(null); }
+  });
+}
+async function ask_destination_via_voice(){
+  if (!currentLocation) { announce("No current location. Scan first.", false); return; }
+  if (!SR_AVAILABLE) { announce("Speech recognition not available. Please use text input.", false); show_destination_modal(); return; }
+  let tries = 0;
+  while (tries < 4) {
+    tries++;
+    announce("Please say your destination after the beep.", true);
+    await new Promise(r=>setTimeout(r,700));
+    const interimBox = document.getElementById('listeningBox');
+    interimBox.style.display = 'block'; interimBox.textContent = "Listening… (speak now)";
+    const transcript = await startSpeechRecognition({lang:'en-US', interim:true, timeout:9000, onInterim:(t)=>{ interimBox.textContent = "Listening… " + t; }});
+    interimBox.textContent = '';
+    if (!transcript) {
+      log("No transcript");
+      if (!userGesturePerformed && tries === 1) {
+        announce("I could not access the microphone automatically. If you allow microphone access, press the Voice Destination button once. Then speak after the beep.", false);
+        voiceDestBtn.classList.add('secondary');
+        await new Promise(r=>setTimeout(r,1500));
+        continue;
+      }
+      announce("I didn't catch that. Let's try again.", false);
+      continue;
+    }
+    log("Recognized: " + transcript);
+    const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
+    const bestMatch = findBestLocationMatch(transcript, candidates);
+    if (!bestMatch) { announce("I couldn't find that location. Please say your destination again.", false); continue; }
+    announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
+    await new Promise(r=>setTimeout(r,600));
+    const conf = await startSpeechRecognition({lang:'en-US', interim:false, timeout:6000});
+    if (!conf) {
+      const ok = confirm(`Did you mean ${bestMatch}? Press OK for yes.`);
+      if (ok) { start_navigation(bestMatch); return; }
+      else { announce("Okay, let's try again.", false); continue; }
+    }
+    const settled = conf.toLowerCase();
+    log("Confirmation: " + settled);
+    if (settled.includes('yes') || settled.includes('yeah') || settled.includes('correct')) {
+      start_navigation(bestMatch); return;
+    } else {
+      announce("Okay, please say your destination again.", false);
+      continue;
+    }
+  }
+  announce("Voice input failed repeatedly. Please type destination instead.", false);
+  show_destination_modal();
+}
+
+/* ---------------------------
+   Navigation (simplified phrasing)
+   --------------------------- */
+function dijkstra(gr, start, end) {
+  const pq = new MinHeap();
+  pq.push({cost:0,node:start,path:[]});
+  const visited = new Set();
+  while (!pq.empty()) {
+    const item = pq.pop();
+    const {cost, node, path} = item;
+    if (visited.has(node)) continue;
+    const newPath = path.concat([node]);
+    visited.add(node);
+    if (node === end) return {path:newPath, cost};
+    const neighbors = gr[node] || {};
+    for (const nb in neighbors) {
+      if (!visited.has(nb)) pq.push({cost: cost + neighbors[nb], node: nb, path: newPath});
+    }
+  }
+  return {path:[], cost: Infinity};
+}
+class MinHeap {
+  constructor(){ this.a = []; }
+  push(x){ this.a.push(x); this._siftUp(); }
+  pop(){ if(this.a.length===0) return null; const r=this.a[0]; const last=this.a.pop(); if(this.a.length) { this.a[0]=last; this._siftDown(); } return r; }
+  empty(){ return this.a.length===0; }
+  _siftUp(){ let i=this.a.length-1; while(i>0){ let p=Math.floor((i-1)/2); if(this.a[p].cost<=this.a[i].cost) break; [this.a[p],this.a[i]]=[this.a[i],this.a[p]]; i=p; } }
+  _siftDown(){ let i=0; const n=this.a.length; while(true){ let l=i*2+1; let r=i*2+2; let smallest=i; if(l<n && this.a[l].cost < this.a[smallest].cost) smallest=l; if(r<n && this.a[r].cost < this.a[smallest].cost) smallest=r; if(smallest===i) break; [this.a[i],this.a[smallest]]=[this.a[smallest],this.a[i]]; i=smallest; } }
+}
+function get_turn_direction(p1,p2,p3) {
+  const v1 = [p2[0]-p1[0], p2[1]-p1[1]];
+  const v2 = [p3[0]-p2[0], p3[1]-p2[1]];
+  const raw = (Math.atan2(v2[1], v2[0]) - Math.atan2(v1[1], v1[0])) * 180/Math.PI;
+  const angle = (raw + 360) % 360;
+  if (angle < 45 || angle > 315) return "Move straight";
+  if (angle >= 45 && angle < 135) return "Turn right";
+  if (angle >= 135 && angle < 225) return "Turn back";
+  return "Turn left";
+}
+function get_initial_direction_simple(p1,p2) {
+  const dx = p2[0]-p1[0], dy = p2[1]-p1[1];
+  const angle = (Math.atan2(dy,dx) * 180/Math.PI + 360) % 360;
+  if (angle >= 315 || angle < 45) return "Move straight";
+  if (angle >= 45 && angle < 135) return "Turn right";
+  if (angle >= 135 && angle < 225) return "Turn back";
+  return "Turn left";
+}
+function start_navigation(destination) {
+  if (!currentLocation) { announce("No current location. Scan QR codes first.", false); return; }
+  if (!destination) { announce("No destination selected.", false); return; }
+  const res = dijkstra(graph, currentLocation, destination);
+  if (!res.path.length || res.cost === Infinity) { announce("No path found to that destination.", false); alert("Routing error: no path found."); return; }
+  announce(`Navigation started to ${destination}. Total distance ${Math.round(res.cost)} meters.`, true);
+  navigationDialog(res.path, res.cost);
+}
+function navigationDialog(path, total_cost) {
+  let idx = 0;
+  currentNavigationTarget = path[path.length - 1];
+  async function showStep(){
+    if (idx >= path.length - 1) {
+      const finalText = `Approaching destination ${path[path.length - 1]}. Look for QR code to confirm arrival.`;
+      announce(finalText, true);
+      overlayText.textContent = `Final: Look for ${path[path.length - 1]} QR`;
+      setTimeout(()=>{ if (!scannerRunning) startCamera(); }, 1200);
+      return;
+    }
+    const current = path[idx];
+    const next = path[idx + 1];
+    const distance = (graph[current] && graph[current][next]) ? Math.round(graph[current][next]) : 0;
+    let dir = (idx === 0) ? get_initial_direction_simple(node_coords[current], node_coords[next]) : get_turn_direction(node_coords[path[idx-1]], node_coords[current], node_coords[next]);
+    let spoken;
+    if (dir === 'Move straight') spoken = `Move straight ${distance} meters to ${next}.`;
+    else if (dir === 'Turn right') spoken = `Turn right towards ${next}. Then move ${distance} meters.`;
+    else if (dir === 'Turn left') spoken = `Turn left towards ${next}. Then move ${distance} meters.`;
+    else if (dir === 'Turn back') spoken = `Turn around. Then move ${distance} meters towards ${next}.`;
+    else spoken = `${dir}. Then move ${distance} meters.`;
+    announce(spoken, false);
+    overlayText.textContent = `Step ${idx+1}: ${spoken}`;
+    const ok = confirm(spoken + "\n\nPress OK for next step, Cancel to stop navigation.");
+    if (ok) { idx++; setTimeout(showStep, 700); }
+    else { announce("Navigation cancelled.", true); currentNavigationTarget = null; overlayText.textContent = "Navigation cancelled"; }
+  }
+  showStep();
+}
+
+/* ---------------------------
+   UI handlers & cleanup
    --------------------------- */
 startBtn.onclick = async () => { if (scannerRunning) { announce("Scanner already running.", false); return; } userGesturePerformed = true; await startCamera(); };
 stopBtn.onclick = () => { stopCamera(); };
@@ -1068,9 +1167,6 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
 });
 
-/* ---------------------------
-   OpenCV init
-   --------------------------- */
 function onOpenCvReady(){ cvReady = true; log("OpenCV ready"); announce("OpenCV loaded - improved color detection available.", false); }
 if (typeof cv !== 'undefined') {
   if (cv && cv.Mat) onOpenCvReady();
@@ -1079,15 +1175,11 @@ if (typeof cv !== 'undefined') {
   setTimeout(()=>{ if (!cvReady) announce("OpenCV not loaded. Falling back to JS color detection.", false); }, 7000);
 }
 
-/* ---------------------------
-   Cleanup and init messages
-   --------------------------- */
 window.addEventListener('beforeunload', ()=>{ if (stream) stream.getTracks().forEach(t=>t.stop()); speechSynthesis.cancel(); });
 
 announce("Ready. Start Scan to begin scanning for three color QR codes. The app will listen automatically when needed.", false);
 log("App initialized. Speech recognition available: " + (SR_AVAILABLE ? 'yes' : 'no'));
 log("Scan sequence: Red (location) + Green (map) + Blue (accessibility)");
-
 </script>
 </body>
 </html>
