@@ -172,9 +172,7 @@
   </div>
 
 <script>
-/* ---------------------------
-   small helpers & DOM
-   --------------------------- */
+/*  small helpers & DOM */ 
 const overlayText = document.getElementById('overlayText');
 const srAnnounce = document.getElementById('srAnnounce');
 const previewCanvas = document.getElementById('previewCanvas');
@@ -199,9 +197,10 @@ const alertsList = document.getElementById('alertsList');
 
 const log = (m) => { console.log(m); const t = new Date().toLocaleTimeString(); logEl.innerText += `[${t}] ${m}\n`; logEl.scrollTop = logEl.scrollHeight; };
 
-/* ---------------------------
-   state
-   --------------------------- */
+/* backendLog — log backend events without spoken feedback */
+function backendLog(m) { console.log("[BACKEND] " + m); const t = new Date().toLocaleTimeString(); logEl.innerText += `[${t}] [BACKEND] ${m}\n`; logEl.scrollTop = logEl.scrollHeight; }
+
+/* state  */
 const SCAN_SIZE = 360;
 let scanBox = { x: 0, y: 0, size: SCAN_SIZE };
 let cvReady = false, animationFrameId = null, stream = null, scannerRunning = false;
@@ -216,9 +215,7 @@ const HARMFUL_CLASSES = new Set(['person','chair','couch','bench','dining table'
 
 let userGesturePerformed = false;
 
-/* ---------------------------
-   TTS simple queue
-   --------------------------- */
+/*  TTS simple queue*/
 const TTS = {
   queue: [], speaking: false,
   speak(text, interrupt=false) {
@@ -247,6 +244,7 @@ const TTS = {
     });
   }
 };
+/* announce (user-facing) — updates UI and speaks */
 function announce(text, interrupt=false) {
   overlayText.textContent = text;
   srAnnounce.textContent = text;
@@ -254,15 +252,11 @@ function announce(text, interrupt=false) {
   log(`[ANNOUNCE] ${text}`);
 }
 
-/* ---------------------------
-   Speech recognition availability
-   --------------------------- */
+/* Speech recognition */
 let SR_AVAILABLE = false;
 try { const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (SpeechRecognition) SR_AVAILABLE = true; } catch(e){ SR_AVAILABLE=false; }
 
-/* ---------------------------
-   Color processing & QR detection
-   --------------------------- */
+/*  Color processing & QR detection */
 
 /* createColorMask: produce an ImageData mask highlighting pixels of a specific color */
 function createColorMask(imageData, color) {
@@ -447,9 +441,8 @@ function detect_colored_qr_in_frame_js(imageData, targetColor=null) {
   return { found: false };
 }
 
-/* ---------------------------
-   Progress UI update
-   --------------------------- */
+/* 
+Progress UI update*/ 
 function updateProgressDisplay() {
   const colors = ['red','green','blue'];
   colors.forEach(color => {
@@ -467,9 +460,7 @@ function updateProgressDisplay() {
   if (foundCount > 0) announce(`${foundCount} of 3 QR codes found.`, false);
 }
 
-/* ---------------------------
-   Vibration helpers
-   --------------------------- */
+/*  Vibration helpers */
 let lastVibrateAt = 0;
 function vibrateProximityFromRatio(ratio) {
   if (!('vibrate' in navigator)) return;
@@ -497,9 +488,7 @@ function vibrateArrival() {
   try { navigator.vibrate([80,40,80,40,120]); } catch(e){}
 }
 
-/* ---------------------------
-   Camera start/stop & loop
-   --------------------------- */
+/*  Camera start/stop & loop */
 async function startCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -545,25 +534,21 @@ function stopCamera() {
   log("Camera stopped.");
 }
 
-/* ---------------------------
-   Load coco model (async)
-   --------------------------- */
+/*Load coco model*/
 async function loadCocoModel() {
   try {
-    log("Loading coco-ssd...");
+    backendLog("Loading coco-ssd...");
     cocoModel = await cocoSsd.load();
     cocoReady = true;
-    log("coco-ssd loaded");
+    backendLog("coco-ssd loaded");
   } catch(e) {
     cocoReady = false;
-    log("coco load failed: " + e);
+    backendLog("coco load failed: " + e);
   }
 }
 loadCocoModel();
 
-/* ---------------------------
-   Draw helper for preview and overlays
-   --------------------------- */
+/*  Draw helper for preview and overlays*/
 function drawPreviewFrame(tmpCanvas) {
   try {
     previewCtx.clearRect(0,0,previewCanvas.width, previewCanvas.height);
@@ -600,9 +585,7 @@ function drawPreviewFrame(tmpCanvas) {
   } catch(e) { console.warn("drawPreviewFrame error", e); }
 }
 
-/* ---------------------------
-   Processing loop (QR + Object detection)
-   --------------------------- */
+/*  Processing loop  */
 let qrDecoderBusy = false, frameSkipCounter = 0;
 async function processFrame(video) {
   if (!scannerRunning) return;
@@ -777,9 +760,7 @@ async function processFrame(video) {
   }, 36);
 }
 
-/* ---------------------------
-   Alerts list UI
-   --------------------------- */
+/* Alerts list UI */
 function updateAlertsList(dets) {
   alertsList.innerHTML = '';
   for (const d of dets) {
@@ -792,9 +773,7 @@ function updateAlertsList(dets) {
   }
 }
 
-/* ---------------------------
-   Simple arrival/decoded handling
-   --------------------------- */
+/*Simple arrival/decoded handling */
 function handleDecoded(decoded, color) {
   const decodedClean = decoded.trim();
   if (currentNavigationTarget) {
@@ -825,9 +804,7 @@ function handleDecoded(decoded, color) {
   }
 }
 
-/* ---------------------------
-   After 3 QRs found
-   --------------------------- */
+
 function triggerAllActionsOnce() {
   if (actionsTriggered) {
     console.log('Actions already triggered, skipping');
@@ -919,9 +896,7 @@ function updateProgressDisplay() {
   console.log(`Progress: ${foundCount}/3 QR codes found`);
 }
 
-/* ---------------------------
-   Map drawing
-   --------------------------- */
+
 const node_coords = {
   "Female Toilet (NGT1)": [2009, 1357],
   "Male Toilet (NGT2)": [1955, 1357],
@@ -1108,9 +1083,7 @@ function roundRect(ctx, x, y, w, h, r, fill, stroke) {
   if (stroke) ctx.stroke();
 }
 
-/* ---------------------------
-   Speech + destination helpers (IMPROVED)
-   --------------------------- */
+
 function show_destination_modal() {
   if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
   const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
@@ -1429,9 +1402,7 @@ async function ask_destination_via_voice(){
   show_destination_modal();
 }
 
-/* ---------------------------
-   Navigation with SIMPLE instructions
-   --------------------------- */
+
 function dijkstra(gr, start, end) {
   const pq = new MinHeap();
   pq.push({cost:0,node:start,path:[]});
@@ -1656,8 +1627,8 @@ window.addEventListener('keydown', (e) => {
 // OpenCV initialization
 function onOpenCvReady(){ 
   cvReady = true; 
-  log("OpenCV ready"); 
-  announce("OpenCV loaded - improved color detection available.", false); 
+  backendLog("OpenCV runtime ready"); 
+  // backendLog used intentionally — this is an internal runtime event and doesn't speak to user
 }
 
 if (typeof cv !== 'undefined') {
@@ -1665,7 +1636,7 @@ if (typeof cv !== 'undefined') {
   else cv['onRuntimeInitialized'] = onOpenCvReady;
 } else {
   setTimeout(() => { 
-    if (!cvReady) announce("OpenCV not loaded. Falling back to JS color detection.", false); 
+    if (!cvReady) backendLog("OpenCV not loaded. Falling back to JS color detection.");
   }, 7000);
 }
 
