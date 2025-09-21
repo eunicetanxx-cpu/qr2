@@ -63,15 +63,13 @@
 
     #previewWrap { display:flex; gap:12px; margin-top:14px; align-items:flex-start; justify-content:center; }
     #previewCanvas {
-      width: 100%;
-      max-width: 900px;
       height: auto;
-      aspect-ratio: 4 / 3;
       background: #000;
       border-radius: 10px;
       border: 2px solid #0b1b2a;
       object-fit: cover;
       display:block;
+      margin: 0 auto;
     }
 
     .alerts { padding:12px; border-radius:10px; background:#061217; border:1px solid rgba(255,255,255,0.02); min-height:100px; color:var(--muted); }
@@ -246,6 +244,44 @@ function announce(text, interrupt=false) {
 }
 
 /* ---------------------------
+   arrival chime (WebAudio)
+   --------------------------- */
+let _audioCtx = null;
+function getAudioCtx() {
+  if (_audioCtx) return _audioCtx;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    _audioCtx = new Ctx();
+    return _audioCtx;
+  } catch(e) { return null; }
+}
+function playArrivalChime() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    // short ascending two-tone chime
+    const o1 = ctx.createOscillator();
+    const g1 = ctx.createGain();
+    o1.type = 'sine'; o1.frequency.setValueAtTime(520, now);
+    g1.gain.setValueAtTime(0, now);
+    g1.gain.linearRampToValueAtTime(0.15, now + 0.01);
+    g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+    o1.connect(g1).connect(ctx.destination);
+    o1.start(now); o1.stop(now + 0.26);
+
+    const o2 = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    o2.type = 'sine'; o2.frequency.setValueAtTime(680, now + 0.12);
+    g2.gain.setValueAtTime(0, now + 0.12);
+    g2.gain.linearRampToValueAtTime(0.12, now + 0.13);
+    g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.36);
+    o2.connect(g2).connect(ctx.destination);
+    o2.start(now + 0.12); o2.stop(now + 0.38);
+  } catch(e) { /* ignore audio errors */ }
+}
+
+/* ---------------------------
    Speech recognition availability
    --------------------------- */
 let SR_AVAILABLE = false;
@@ -253,6 +289,7 @@ try { const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechR
 
 /* ---------------------------
    Color processing & QR detection
+   (same functions as before)
    --------------------------- */
 
 /* createColorMask: produce an ImageData mask highlighting pixels of a specific color */
@@ -595,31 +632,34 @@ function drawPreviewFrame(tmpCanvas) {
    Processing loop (QR + Object detection)
    --------------------------- */
 let qrDecoderBusy = false, frameSkipCounter = 0;
-async function processFrame(video){
+async function processFrame(video) {
   if (!scannerRunning) return;
-  animationFrameId = requestAnimationFrame(()=>processFrame(video));
+  animationFrameId = requestAnimationFrame(() => processFrame(video));
   if (!video || video.readyState < 2) return;
 
   frameSkipCounter++;
   if (frameSkipCounter % 2 !== 0 && foundResults.size < 3) return;
 
-  // ensure canvas sizes
+  // Ensure canvas sizes
   canvasDisp.width = video.videoWidth || canvasDisp.width;
   canvasDisp.height = video.videoHeight || canvasDisp.height;
 
-  // draw frame into processing canvas
+  // Draw frame into processing canvas
   ctxDisp.drawImage(video, 0, 0, canvasDisp.width, canvasDisp.height);
 
-  // create temporary preview canvas for sighted helper
+  // Create temporary preview canvas
   const tmp = document.createElement('canvas');
-  tmp.width = canvasDisp.width; tmp.height = canvasDisp.height;
+  tmp.width = canvasDisp.width; 
+  tmp.height = canvasDisp.height;
   const tmpCtx = tmp.getContext('2d');
   tmpCtx.drawImage(canvasDisp, 0, 0);
-  // draw centered scan box (for sighted helper)
-  tmpCtx.strokeStyle = '#00ff88'; tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
+  
+  // Draw scan box for sighted helper
+  tmpCtx.strokeStyle = '#00ff88'; 
+  tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
   tmpCtx.strokeRect(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
 
-  // if object detection boxes exist, draw them on tmp for scaling later
+  // Draw object detection boxes if available
   if (latestDetections && latestDetections.length > 0 && enableDetectCheckbox.checked) {
     tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
     for (const d of latestDetections) {
@@ -636,7 +676,7 @@ async function processFrame(video){
     }
   }
 
-  // draw to visible preview
+  // Draw to visible preview
   drawPreviewFrame(tmp);
 
   if (qrDecoderBusy) return;
@@ -644,36 +684,49 @@ async function processFrame(video){
 
   setTimeout(async () => {
     try {
-      // read scan area image data
+      // Read scan area image data
       const imageData = ctxDisp.getImageData(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
       const targetFilter = (colorFilterEl.value === "Any") ? null : colorFilterEl.value.toLowerCase();
       const colorOrder = targetFilter ? [targetFilter] : ['blue','red','green'];
+      
       for (const color of colorOrder) {
         if (foundResults.has(color)) continue;
+        
         const detection = detect_colored_qr_in_frame_js(imageData, color);
         if (detection.found && detection.decoded) {
           const decodedClean = detection.decoded.trim();
-          foundResults.set(color, { decoded: decodedClean, method: detection.method || 'unknown', boxArea: detection.boxArea || null });
+          foundResults.set(color, { 
+            decoded: decodedClean, 
+            method: detection.method || 'unknown', 
+            boxArea: detection.boxArea || null 
+          });
+          
           announce(`${color} QR found: ${decodedClean}`, true);
           updateProgressDisplay();
+          
           if (detection.boxArea) {
             const scanArea = scanBox.size * scanBox.size;
             const ratio = detection.boxArea / scanArea;
             vibrateProximityFromRatio(ratio);
             if (ratio >= 0.15) vibrateApproachPattern(ratio);
           }
+          
           handleDecoded(decodedClean, color);
           break;
         }
       }
 
-      const allColors = ['red','green','blue'];
+      // CRITICAL: Check if ALL 3 colors are found before triggering
+      const requiredColors = ['red', 'green', 'blue'];
       const foundColors = Array.from(foundResults.keys());
-      if (!actionsTriggered && allColors.every(c => foundColors.includes(c))) {
+      const allColorsFound = requiredColors.every(color => foundColors.includes(color));
+      
+      // Only trigger if ALL 3 colors found AND not already triggered
+      if (!actionsTriggered && allColorsFound) {
         triggerAllActionsOnce();
       }
 
-      // Object detection (periodic)
+      // Object detection logic (unchanged)...
       const now = performance.now();
       if (enableDetectCheckbox.checked && cocoReady && (now - lastDetectTime > DETECTION_INTERVAL_MS)) {
         lastDetectTime = now;
@@ -693,14 +746,13 @@ async function processFrame(video){
             return { class: p.class, score: p.score, bbox: [x*scaleBack, y*scaleBack, w*scaleBack, h*scaleBack] };
           });
 
-          // update alerts list
           if (latestDetections.length) {
             updateAlertsList(latestDetections.slice(0,4));
           } else {
             updateAlertsList([]);
           }
 
-          // choose harmful candidate for voice alert
+          // Obstacle detection logic (unchanged)...
           let candidate = null;
           const fh = canvasDisp.height;
           const fw = canvasDisp.width;
@@ -729,8 +781,6 @@ async function processFrame(video){
                   announce(`Obstacle ahead: ${cls}, approximately ${distMeters.toFixed(1)} meters.`, false);
                   lastAlertAt[cls] = nowTs;
                   log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`);
-                } else {
-                  log(`[OBSTACLE] ${cls} detected but ${distMeters.toFixed(1)}m away (>5m) - no alert`);
                 }
               }
             }
@@ -748,6 +798,7 @@ async function processFrame(video){
   }, 36);
 }
 
+
 /* ---------------------------
    Alerts list UI
    --------------------------- */
@@ -764,20 +815,24 @@ function updateAlertsList(dets) {
 }
 
 /* ---------------------------
-   Simple arrival/decoded handling (keeps your original behaviour)
+   Simple arrival/decoded handling (enhanced arrival feedback)
    --------------------------- */
 function handleDecoded(decoded, color) {
   const decodedClean = decoded.trim();
   if (currentNavigationTarget) {
     const target = (currentNavigationTarget || "").toLowerCase();
     const detected = decodedClean.toLowerCase();
+    // match arrival more robustly (exact or contains/contained)
     if (detected === target || detected.includes(target) || target.includes(detected)) {
       log("Arrival confirmed: " + decodedClean);
-      announce(`You have arrived at ${decodedClean}.`, true);
+      // Arrival: play chime, vibrate, speak the confirmation and instruction to open door
+      try { playArrivalChime(); } catch(e) {}
+      try { vibrateArrival(); } catch(e) {}
+      const speakMsg = `You have reached ${decodedClean}. You may open the door to enter.`;
+      announce(speakMsg, true);
       currentLocation = decodedClean; currentNavigationTarget = null;
       stopCamera();
-      vibrateArrival();
-      setTimeout(()=>{ alert(`Arrival confirmed: ${decodedClean}`); }, 800);
+      setTimeout(()=>{ alert(`Arrival confirmed: ${decodedClean}\n\nYou may open the door to enter.`); }, 800);
       return;
     } else {
       if (decodedClean !== currentLocation) {
@@ -799,23 +854,75 @@ function handleDecoded(decoded, color) {
 /* ---------------------------
    After 3 QRs found
    --------------------------- */
-function triggerAllActionsOnce(){
-  if (actionsTriggered) return; actionsTriggered = true;
-  log("All three color QR codes detected");
-  announce("All QR codes detected. Processing information now.", true);
+function triggerAllActionsOnce() {
+  if (actionsTriggered) {
+    console.log('Actions already triggered, skipping');
+    return;
+  }
+  
+  // Double-check that we have all required colors
+  const requiredColors = ['red', 'green', 'blue'];
+  const foundColors = Array.from(foundResults.keys());
+  const allColorsFound = requiredColors.every(color => foundColors.includes(color));
+  
+  if (!allColorsFound) {
+    console.log('Not all colors found yet:', foundColors);
+    return;
+  }
+  
+  actionsTriggered = true;
+  
+  log("ALL THREE COLOR QR CODES DETECTED - TRIGGERING ACTIONS");
+  announce("All three QR codes detected. Processing information now.", true);
+  
   const greenQR = foundResults.get('green')?.decoded || '';
   const blueQR = foundResults.get('blue')?.decoded || '';
   const redQR = foundResults.get('red')?.decoded || '';
+  
+  console.log('QR Code Results:');
+  console.log('Red QR (Location):', redQR);
+  console.log('Green QR (Map):', greenQR);
+  console.log('Blue QR (Accessibility):', blueQR);
+  
+  // Set current location immediately
+  currentLocation = redQR;
+  
   stopCamera();
-  setTimeout(()=>{ log("Map info: " + greenQR); announce("Map information available.", false); drawMap(); mapModal.style.display = 'flex'; }, 700);
-  setTimeout(()=>{ log("Accessibility: " + blueQR); announce("Accessibility information: " + blueQR, false); }, 1500);
-  setTimeout(()=>{ currentLocation = redQR; log("Current location: " + redQR); announce("Your current location is " + redQR, false); }, 2500);
-  setTimeout(()=>{ if (SR_AVAILABLE) { announce("I will listen for your destination now.", true); ask_destination_via_voice(); } else { show_destination_modal(); } }, 3600);
+  
+  // Sequence the announcements with proper timing
+  setTimeout(() => { 
+    log("Map info: " + greenQR); 
+    announce("Map information available.", false); 
+    drawMap(); 
+    mapModal.style.display = 'flex'; 
+  }, 700);
+  
+  setTimeout(() => { 
+    log("Accessibility: " + blueQR); 
+    announce("Accessibility information: " + blueQR, false); 
+  }, 1500);
+  
+  setTimeout(() => { 
+    log("Current location confirmed: " + redQR); 
+    announce("Your current location is " + redQR, false); 
+  }, 2500);
+  
+  setTimeout(() => { 
+    if (SR_AVAILABLE) { 
+      announce("I will listen for your destination now.", true); 
+      ask_destination_via_voice(); 
+    } else { 
+      show_destination_modal(); 
+    } 
+  }, 3600);
 }
 
 /* ---------------------------
-   Map drawing (keeps your improved label placement)
+   Map drawing & other helpers (same)
    --------------------------- */
+
+/* (The map drawing and matching functions are unchanged - keep your earlier versions) */
+
 const node_coords = {
   "Female Toilet (NGT1)": [2009, 1357],
   "Male Toilet (NGT2)": [1955, 1357],
@@ -943,26 +1050,13 @@ function drawMap() {
     const p = lbl.p;
 
     if (typeof currentLocation !== "undefined" && lbl.name === currentLocation) {
-      // 🔴 Current location in red
-      ctx.fillStyle = "#ff4444";
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], 10, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = "#ff4444"; ctx.beginPath(); ctx.arc(p[0], p[1], 10, 0, Math.PI * 2); ctx.fill();
     } else if (typeof destinationNode !== "undefined" && lbl.name === destinationNode) {
-      // 🟢 Destination in green
-      ctx.fillStyle = "#22bb33";
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], 9, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = "#22bb33"; ctx.beginPath(); ctx.arc(p[0], p[1], 9, 0, Math.PI * 2); ctx.fill();
     } else {
-      // ⚫ Normal nodes
-      ctx.fillStyle = "#333";
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], 5, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2); ctx.fill();
     }
 
-    // Label box + text
     const bx = lbl.lx, by = lbl.ly - 4;
     const bw = lbl.textW + lbl.padding * 2;
     const bh = lbl.labelH + lbl.padding / 1.5;
@@ -994,8 +1088,9 @@ function roundRect(ctx, x, y, w, h, r, fill, stroke) {
 }
 
 /* ---------------------------
-   Speech + destination helpers (improved confirmation handling)
+   Speech + destination helpers (keeps existing behavior)
    --------------------------- */
+
 function show_destination_modal() {
   if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
   const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
@@ -1016,16 +1111,59 @@ function show_destination_modal() {
   if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
   else { announce("Selection cancelled. Try again.", false); setTimeout(()=>show_destination_modal(), 500); }
 }
+
 function findBestLocationMatch(input, candidates) {
-  const s = input.toLowerCase().trim();
-  let m = candidates.find(c=>c.toLowerCase()===s);
-  if (m) return m;
-  m = candidates.find(c=>c.toLowerCase().includes(s));
-  if (m) return m;
-  m = candidates.find(c=>c.toLowerCase().split(' ').some(word => s.includes(word) || word.includes(s)));
-  if (m) return m;
+  if (!input || !candidates || candidates.length === 0) return null;
+
+  // normalize: lowercase, remove punctuation except digits/letters/space
+  const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+
+  const q = normalize(input);
+  if (!q) return null;
+
+  // full exact match first
+  for (const c of candidates) {
+    if (normalize(c) === q) return c;
+  }
+
+  const qTokens = q.split(/\s+/).filter(Boolean);
+  // token-based scoring (prefer whole-word matches)
+  let best = null;
+  let bestScore = 0;
+  for (const cand of candidates) {
+    const cNorm = normalize(cand);
+    const cTokens = cNorm.split(/\s+/).filter(Boolean);
+
+    // count how many query tokens appear as whole tokens in candidate
+    let matched = 0;
+    for (const qt of qTokens) {
+      // whole-word equality
+      if (cTokens.includes(qt)) { matched++; continue; }
+      // allow prefix match (user may say 'toil' -> 'toilet'), but avoid substring that matches inside another word ('male' inside 'female')
+      const prefixHit = cTokens.some(ct => ct.startsWith(qt) && ct.length - qt.length <= 3); // limit to small remainder
+      if (prefixHit) { matched++; continue; }
+    }
+
+    const score = matched / qTokens.length; // 0..1
+    // prefer shorter candidate names if scores tie
+    if (score > bestScore || (score === bestScore && best && cNorm.length < best.length)) {
+      best = cand;
+      bestScore = score;
+    }
+  }
+
+  if (bestScore > 0) return best;
+
+  // Last-resort fallback (lower priority): keep original includes logic but only if it makes sense
+  // (this helps when user speaks a very short fragment that doesn't correspond to whole tokens)
+  for (const cand of candidates) {
+    const cNorm = normalize(cand);
+    if (cNorm.includes(q)) return cand;
+  }
+
   return null;
 }
+
 
 function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInterim=null} = {}) {
   return new Promise((resolve) => {
@@ -1196,31 +1334,64 @@ function start_navigation(destination) {
 function navigationDialog(path, total_cost) {
   let idx = 0;
   currentNavigationTarget = path[path.length - 1];
-  async function showStep(){
+  
+  function showStep() {
     if (idx >= path.length - 1) {
-      const finalText = `Approaching destination ${path[path.length - 1]}. Look for QR code to confirm arrival.`;
-      announce(finalText, true);
-      overlayText.textContent = `Final: Look for ${path[path.length - 1]} QR`;
-      setTimeout(()=>{ if (!scannerRunning) startCamera(); }, 1200);
+      const finalText = `You are approaching your destination: ${path[path.length - 1]}. Look for the QR code to confirm your arrival.`;
+      TTS.speak(finalText);
+      overlayText.textContent = `Final step: Look for ${path[path.length - 1]} QR code`;
+      setTimeout(() => {
+        if (!scannerRunning) { 
+          log("🔄 Restarting camera for arrival confirmation..."); 
+          startBtn.click(); 
+        }
+      }, 2000);
       return;
     }
+    
     const current = path[idx];
     const next = path[idx + 1];
-    const distance = (graph[current] && graph[current][next]) ? Math.round(graph[current][next]) : 0;
-    let dir = (idx === 0) ? get_initial_direction_simple(node_coords[current], node_coords[next]) : get_turn_direction(node_coords[path[idx-1]], node_coords[current], node_coords[next]);
-    let spoken;
-    if (dir === 'Move straight') spoken = `Move straight ${distance} meters to ${next}.`;
-    else if (dir === 'Turn right') spoken = `Turn right towards ${next}. Then move ${distance} meters.`;
-    else if (dir === 'Turn left') spoken = `Turn left towards ${next}. Then move ${distance} meters.`;
-    else if (dir === 'Turn back') spoken = `Turn around. Then move ${distance} meters towards ${next}.`;
-    else spoken = `${dir}. Then move ${distance} meters.`;
-    announce(spoken, false);
-    overlayText.textContent = `Step ${idx+1}: ${spoken}`;
-    const ok = confirm(spoken + "\n\nPress OK for next step, Cancel to stop navigation.");
-    if (ok) { idx++; setTimeout(showStep, 700); }
-    else { announce("Navigation cancelled.", true); currentNavigationTarget = null; overlayText.textContent = "Navigation cancelled"; }
+    const distance = (graph[current] && graph[current][next]) ? graph[current][next] : 0;
+    const totalSteps = path.length - 1;
+    const remainingSteps = totalSteps - idx - 1;
+    
+    let instruction;
+    if (idx === 0) {
+      instruction = `${get_initial_direction_simple(node_coords[current], node_coords[next])} towards ${next}`;
+    } else {
+      const prev = path[idx - 1];
+      instruction = `At ${current}: ${get_turn_direction(node_coords[prev], node_coords[current], node_coords[next])} towards ${next}`;
+    }
+    
+    // Enhanced step announcement with progress info
+    const stepInfo = `Step ${idx + 1} of ${totalSteps}. ${instruction}. Distance ${distance.toFixed(0)} meters.`;
+    const progressInfo = remainingSteps > 0 ? ` ${remainingSteps} steps remaining after this one.` : ` This leads to your final destination.`;
+    const spoken = stepInfo + progressInfo;
+    
+    TTS.speak(spoken);
+    log(`📍 Step ${idx + 1}/${totalSteps}: ${instruction} (${distance.toFixed(0)}m)`);
+    overlayText.textContent = `Step ${idx + 1}/${totalSteps}: ${instruction}`;
+    
+    // Show enhanced dialog with route context
+    const dialogMessage = spoken + 
+      `\n\nCurrent route progress: ${idx + 1}/${totalSteps}` +
+      `\nNext waypoint: ${next}` +
+      `\nFinal destination: ${path[path.length - 1]}` +
+      `\n\nPress OK for next step, Cancel to stop navigation.`;
+    
+    if (confirm(dialogMessage)) {
+      idx++;
+      setTimeout(showStep, 500);
+    } else {
+      TTS.speak("Navigation cancelled.", true);
+      currentNavigationTarget = null;
+      overlayText.textContent = "Navigation cancelled";
+    }
   }
-  showStep();
+  
+  // Announce navigation start
+  TTS.speak(`Beginning step-by-step navigation. Step 1 coming up.`);
+  setTimeout(showStep, 1500);
 }
 
 /* ---------------------------
