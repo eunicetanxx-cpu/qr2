@@ -1056,84 +1056,53 @@ function startSpeechRecognition({lang='en-US', interim=true, timeout=9000, onInt
     try { recognition.start(); } catch(e) { clearTimeout(timer); resolve(null); }
   });
 }
-async function ask_destination_via_voice() {
-  if (!currentLocation) { 
-    announce("No current location. Scan first.", false); 
-    return; 
-  }
-  if (!SR_AVAILABLE) { 
-    announce("Speech recognition not available. Please use text input.", false); 
-    show_destination_modal(); 
-    return; 
-  }
-
-  let confirmed = false;
-
-  while (!confirmed) {
+async function ask_destination_via_voice(){
+  if (!currentLocation) { announce("No current location. Scan first.", false); return; }
+  if (!SR_AVAILABLE) { announce("Speech recognition not available. Please use text input.", false); show_destination_modal(); return; }
+  let tries = 0;
+  while (tries < 4) {
+    tries++;
     announce("Please say your destination after the beep.", true);
-    await new Promise(r => setTimeout(r, 700));
-
+    await new Promise(r=>setTimeout(r,700));
     const interimBox = document.getElementById('listeningBox');
-    interimBox.style.display = 'block';
-    interimBox.textContent = "Listening… (speak now)";
-
-    const transcript = await startSpeechRecognition({
-      lang: 'en-US', 
-      interim: true, 
-      timeout: 9000, 
-      onInterim: (t) => { interimBox.textContent = "Listening… " + t; }
-    });
-
+    interimBox.style.display = 'block'; interimBox.textContent = "Listening… (speak now)";
+    const transcript = await startSpeechRecognition({lang:'en-US', interim:true, timeout:9000, onInterim:(t)=>{ interimBox.textContent = "Listening… " + t; }});
     interimBox.textContent = '';
-
     if (!transcript) {
+      log("No transcript");
+      if (!userGesturePerformed && tries === 1) {
+        announce("I could not access the microphone automatically. If you allow microphone access, press the Voice Destination button once. Then speak after the beep.", false);
+        voiceDestBtn.classList.add('secondary');
+        await new Promise(r=>setTimeout(r,1500));
+        continue;
+      }
       announce("I didn't catch that. Let's try again.", false);
-      continue; // loop back
+      continue;
     }
-
     log("Recognized: " + transcript);
     const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
     const bestMatch = findBestLocationMatch(transcript, candidates);
-
-    if (!bestMatch) {
-      announce("I couldn't find that location. Please say your destination again.", false);
-      continue; // loop back
-    }
-
-    // Ask for confirmation
+    if (!bestMatch) { announce("I couldn't find that location. Please say your destination again.", false); continue; }
     announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
-    await new Promise(r => setTimeout(r, 600));
-
-    const conf = await startSpeechRecognition({ lang: 'en-US', interim: false, timeout: 6000 });
-
+    await new Promise(r=>setTimeout(r,600));
+    const conf = await startSpeechRecognition({lang:'en-US', interim:false, timeout:6000});
     if (!conf) {
       const ok = confirm(`Did you mean ${bestMatch}? Press OK for yes.`);
-      if (ok) { 
-        start_navigation(bestMatch); 
-        confirmed = true; 
-        break; 
-      } else { 
-        announce("Okay, let's try again.", false); 
-        continue; 
-      }
+      if (ok) { start_navigation(bestMatch); return; }
+      else { announce("Okay, let's try again.", false); continue; }
     }
-
     const settled = conf.toLowerCase();
     log("Confirmation: " + settled);
-
     if (settled.includes('yes') || settled.includes('yeah') || settled.includes('correct')) {
-      start_navigation(bestMatch);
-      confirmed = true; // ✅ stop the loop
-    } else if (settled.includes('no')) {
-      announce("Okay, please say your destination again.", false);
-      continue; // ✅ re-ask destination
+      start_navigation(bestMatch); return;
     } else {
-      announce("I didn't catch that. Please say yes or no.", false);
-      continue; // loop until valid
+      announce("Okay, please say your destination again.", false);
+      continue;
     }
   }
+  announce("Voice input failed repeatedly. Please type destination instead.", false);
+  show_destination_modal();
 }
-
 
 /* ---------------------------
    Navigation (simplified phrasing)
