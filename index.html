@@ -1681,7 +1681,7 @@ async function waitForNextCommand(expectedNext) {
   navigationState.waitingForVoice = true;
   
   await TTS.forceStopAndWait();
-  announce(`Say 'next' to continue to ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
+  announce(`Say 'next' when you reach ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
   
   await TTS.waitForFinish();
   
@@ -1943,80 +1943,60 @@ function cancelNavigation() {
 /* ---------------------------
    UI Event Handlers
    --------------------------- */
-startBtn.onclick = async () => { 
-  if (scannerRunning) { 
-    announce("Scanner already running.", false); 
-    return; 
-  } 
-  userGesturePerformed = true; 
-  await startCamera(); 
-};
+function safeOn(el, event, handler) {
+  if (!el) { console.warn(`safeOn: element for ${event} not found`); return; }
+  el.addEventListener(event, handler);
+}
 
-stopBtn.onclick = () => { 
-  stopCamera(); 
-  if (navigationState.active) {
-    cancelNavigation();
+safeOn(startBtn, 'click', async () => {
+  if (scannerRunning) {
+    announce("Scanner already running.", false);
+    return;
   }
-};
-
-restartBtn.onclick = () => { 
-  if (navigationState.active) {
-    cancelNavigation();
-  }
-  stopCamera(); 
-  foundResults.clear(); 
-  actionsTriggered=false; 
-  scanStartTime = Date.now(); 
-  setTimeout(()=>{ startBtn.click(); },300); 
-};
-
-voiceDestBtn.onclick = async () => { 
   userGesturePerformed = true;
-  
-  // Check prerequisites
-  if (!actionsTriggered) {
-    announce("Please scan all three QR codes first to set up the system.", false);
-    return;
-  }
-  
-  if (!currentLocation) {
-    announce("No current location detected. Please scan QR codes first.", false);
-    return;
-  }
-  
-  if (!SR_AVAILABLE) {
-    announce("Speech recognition is not available in your browser. Using text input instead.", false);
-    show_destination_modal();
-    return;
-  }
-  
-  // Disable button temporarily to prevent multiple clicks
-  voiceDestBtn.disabled = true;
-  voiceDestBtn.textContent = "Listening...";
-  
+  await startCamera();
+});
+
+safeOn(stopBtn, 'click', () => {
+  stopCamera();
+  if (navigationState.active) cancelNavigation();
+});
+
+safeOn(restartBtn, 'click', () => {
+  try {
+    if (navigationState.active) cancelNavigation();
+    stopCamera();
+    foundResults.clear();
+    actionsTriggered = false;
+    scanStartTime = Date.now();
+    setTimeout(() => { if (startBtn) startBtn.click(); }, 300);
+  } catch (e) { console.warn('restart error', e); }
+});
+
+safeOn(voiceDestBtn, 'click', async () => {
+  userGesturePerformed = true;
+  log('VoiceDest button clicked');
   try {
     await ask_destination_via_voice();
-  } catch (error) {
-    console.error("Voice destination error:", error);
-    announce("Voice input failed. Please try again.", false);
-  } finally {
-    // Re-enable button
-    voiceDestBtn.disabled = false;
-    voiceDestBtn.textContent = "Voice Destination";
+  } catch (e) {
+    console.error('ask_destination_via_voice error', e);
+    announce("Voice input failed. Please type destination instead.", false);
+    show_destination_modal();
   }
-};
+});
 
-mapBtn.onclick = () => { 
-  drawMap(); 
-  mapModal.style.display = 'flex'; 
-  announce("Map opened. Close when ready.", false); 
-};
+safeOn(mapBtn, 'click', () => {
+  drawMap();
+  if (mapModal) mapModal.style.display = 'flex';
+  announce("Map opened. Close when ready.", false);
+});
 
-closeMap.onclick = () => { 
-  mapModal.style.display = 'none'; 
-  announce("Map closed.", false); 
-};
-  
+safeOn(closeMap, 'click', () => {
+  if (mapModal) mapModal.style.display = 'none';
+  announce("Map closed.", false);
+});
+
+
 /* ---------------------------
    OpenCV Initialization
    --------------------------- */
