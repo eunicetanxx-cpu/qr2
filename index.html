@@ -2016,16 +2016,7 @@ closeMap.onclick = () => {
   mapModal.style.display = 'none'; 
   announce("Map closed.", false); 
 };
-
-// Keyboard shortcuts
-window.addEventListener('keydown', (e) => {
-  if (e.key === 's' || e.key === 'S') { startBtn.click(); }
-  if (e.key === 'v' || e.key === 'V') { voiceDestBtn.click(); }
-  if (e.key === 'm' || e.key === 'M') { mapBtn.click(); }
-  if (e.key === 'r' || e.key === 'R') { restartBtn.click(); }
-  if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
-});
-
+  
 /* ---------------------------
    OpenCV Initialization
    --------------------------- */
