@@ -4,8 +4,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>VI-Friendly Indoor Navigation (Enhanced Step-by-Step)</title>
+  <title>VI Indoor Navigation</title>
   <style>
+    /* Visual hint when audio was blocked and we’re waiting for a gesture */
+    .needs-gesture {
+      animation: pulseGlow 1100ms ease-in-out infinite;
+      box-shadow: 0 6px 20px rgba(255, 235, 59, 0.22), 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    @keyframes pulseGlow {
+      0% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 28px rgba(255, 235, 59, 0.26);
+      }
+
+      100% {
+        transform: translateY(0);
+      }
+    }
+
     :root {
       --bg: #000;
       --card: #0b1220;
@@ -443,7 +464,11 @@
         <button id="startBtn" class="btn green" aria-pressed="false" aria-label="Start scanning for QR codes (S)">Start
           Scan</button>
         <button id="stopBtn" class="btn red" aria-pressed="false" aria-label="Stop scanning (Space)">Stop Scan</button>
-        <button id="voiceDestBtn" class="btn yellow" aria-label="Voice destination input (V)">Voice Destination</button>
+        <button id="voiceDestBtn" type="button" class="btn yellow" aria-label="Voice destination input (V)"
+          aria-pressed="false" tabindex="0">
+          Voice Destination
+        </button>
+
       </div>
     </div>
 
@@ -1630,7 +1655,7 @@
           log("No transcript received");
           if (!userGesturePerformed && tries === 1) {
             await TTS.forceStopAndWait();
-            announce("I could not access the microphone automatically. Please press the Voice Destination button at the bottom right on the screen and allow microphone access, then speak after the beep.", false);
+            announce("I could not access the microphone automatically. Please press the Voice Destination button on the bottom right of the screen and allow microphone access, then speak after the beep.", false);
             voiceDestBtn.classList.add('secondary');
             await TTS.waitForFinish();
             await new Promise(r => setTimeout(r, 1000));
@@ -2191,7 +2216,7 @@
       vibrateArrival();
 
       setTimeout(() => {
-        announce("You can start a new navigation by pressing the Voice Destination butto at the bottom right on the screen.", false);
+        announce("You can start a new navigation by pressing the Voice Destination button on the bottom right of the screen.", false);
       }, 3000);
     }
 
@@ -2249,17 +2274,34 @@
       } catch (e) { console.warn('restart error', e); }
     });
 
-    safeOn(voiceDestBtn, 'click', async () => {
-      userGesturePerformed = true;
-      log('VoiceDest button clicked');
-      try {
-        await ask_destination_via_voice();
-      } catch (e) {
-        console.error('ask_destination_via_voice error', e);
-        announce("Voice input failed. Please type destination instead.", false);
-        show_destination_modal();
-      }
-    });
+    if (voiceDestBtn) {
+      voiceDestBtn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        try {
+          // mark as user gesture so browsers allow speech features
+          userGesturePerformed = true;
+          voiceDestBtn.setAttribute('aria-pressed', 'true');
+          log('VoiceDest button clicked (userGesturePerformed set)');
+
+          // Attempt voice flow; if it fails, fallback to modal
+          try {
+            await ask_destination_via_voice(); // existing function in your code
+          } catch (err) {
+            console.error('ask_destination_via_voice error', err);
+            // announce and fallback (announce() or TTS depending on your file; keep original fallback)
+            if (typeof announce === 'function') announce("Voice input failed. Please type destination instead.", false);
+            else if (typeof TTS !== 'undefined' && TTS.speak) TTS.speak("Voice input failed. Please type destination instead.");
+            show_destination_modal();
+          }
+
+        } finally {
+          // restore pressed state
+          voiceDestBtn.setAttribute('aria-pressed', 'false');
+        }
+      }, { passive: false });
+    } else {
+      console.warn('voiceDestBtn element not found on page — voice button was not bound.');
+    }
 
     safeOn(mapBtn, 'click', () => {
       drawMap();
@@ -2298,9 +2340,255 @@
     });
 
     // Initialize application
-    announce("VI Indoor Navigation System ready. Start by scanning the initial QR codes to determine your location.", false);
-    log("App initialized. Speech recognition available: " + (SR_AVAILABLE ? 'yes' : 'no'));
-    log("Enhanced step-by-step navigation with QR verification enabled");
+    overlayText.textContent = "Ready. Click 'Start Scan' to begin scanning for 3 color QR codes.";
+    log("🚀 Indoor Navigation App initialized.");
+    log(`📱 Speech Recognition available: ${SR_AVAILABLE}`);
+    log("📋 Scan sequence: Red (location) + Green (map) + Blue (accessibility) = Navigation ready");
+
+
+    (async function welcomeDiagnostic() {
+      const msg = "Diagnostic welcome. If you hear this, autoplay is allowed.";
+      console.log("Diagnostic: attempting to speak...");
+
+      function log(...args) { console.log("[welcomeDiag]", ...args); }
+
+      // speechSynthesis path (if available)
+      if ('speechSynthesis' in window) {
+        const utt = new SpeechSynthesisUtterance(msg);
+        utt.onstart = () => log("speechSynthesis onstart fired");
+        utt.onend = () => log("speechSynthesis onend fired");
+        utt.onerror = (e) => log("speechSynthesis onerror", e);
+        try {
+          speechSynthesis.speak(utt);
+          // little timeout to check speaking state
+          setTimeout(() => {
+            log("speechSynthesis.speaking:", speechSynthesis.speaking, "pending:", speechSynthesis.pending);
+          }, 600);
+        } catch (e) {
+          log("speechSynthesis.speak() threw:", e);
+        }
+      } else {
+        log("speechSynthesis not supported in this browser.");
+      }
+
+      // If you have a TTS object in your app, try to call it and log errors
+      if (typeof TTS !== 'undefined' && TTS && typeof TTS.speak === 'function') {
+        try {
+          TTS.speak(msg, false);
+          log("Called TTS.speak()");
+        } catch (e) {
+          log("TTS.speak() threw:", e);
+        }
+      } else {
+        log("TTS object not found.");
+      }
+
+      // Test AudioContext resume state
+      try {
+        const AC = (window.AudioContext || window.webkitAudioContext);
+        if (AC) {
+          const ac = new AC();
+          log("AudioContext created, state:", ac.state);
+          setTimeout(() => log("AudioContext state after short wait:", ac.state), 400);
+        } else {
+          log("AudioContext not supported");
+        }
+      } catch (e) {
+        log("AudioContext create error:", e);
+      }
+
+      log("Diagnostic complete — check for onstart/onerror logs and 'speaking:true'.");
+    })();
+
+    (function welcomeWithTapUnlock() {
+      const welcomeMsg = "Welcome. To begin, press the Start Scan button at the bottom left to start scanning for QR codes.";
+      window.userGesturePerformed = window.userGesturePerformed || false;
+
+      // small helper to speak (tries TTS then speechSynthesis)
+      function speakNow(text, interrupt = false) {
+        try {
+          if (typeof TTS !== 'undefined' && TTS && typeof TTS.speak === 'function') {
+            TTS.speak(text, interrupt);
+            return true;
+          } else if (window.speechSynthesis) {
+            const utt = new SpeechSynthesisUtterance(text);
+            utt.onstart = () => console.log("[speakNow] onstart");
+            utt.onerror = (e) => console.warn("[speakNow] onerror", e);
+            speechSynthesis.speak(utt);
+            return true;
+          }
+        } catch (e) {
+          console.warn("[speakNow] failed:", e);
+        }
+        return false;
+      }
+
+      // try to speak immediately
+      let attempted = false;
+      try {
+        attempted = speakNow(welcomeMsg, false);
+        setTimeout(() => {
+          // if speechSynthesis didn't start, treat as blocked
+          const speaking = window.speechSynthesis && window.speechSynthesis.speaking;
+          if (speaking) {
+            console.log("[welcome] autoplay succeeded");
+            document.body.classList.remove('needs-gesture');
+            window.userGesturePerformed = true;
+          } else {
+            console.log("[welcome] autoplay likely blocked or didn't start -> enabling tap-unlock");
+            setupTapUnlock();
+          }
+        }, 700);
+      } catch (e) {
+        console.warn("[welcome] immediate attempt error:", e);
+        setupTapUnlock();
+      }
+
+      function setupTapUnlock() {
+        // create overlay if not present
+        if (document.body.querySelector('#voice-unlock-overlay')) return;
+        const ov = document.createElement('div');
+        ov.id = 'voice-unlock-overlay';
+        ov.innerHTML = `
+      <div id="voice-unlock-box" role="button" aria-label="Tap to enable voice">
+        Tap anywhere to enable voice prompts
+      </div>
+    `;
+        Object.assign(ov.style, {
+          position: 'fixed', inset: '0', display: 'flex',
+          'alignItems': 'center', 'justifyContent': 'center',
+          'background': 'rgba(0,0,0,0.18)', zIndex: 99999, cursor: 'pointer',
+          transition: 'opacity .25s ease'
+        });
+        const box = ov.querySelector('#voice-unlock-box');
+        Object.assign(box.style, {
+          padding: '14px 18px', borderRadius: '12px', backdropFilter: 'blur(6px)',
+          background: 'rgba(255,255,255,0.95)', color: '#111', fontSize: '16px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.12)'
+        });
+        document.body.appendChild(ov);
+
+        const unlock = async () => {
+          try {
+            window.userGesturePerformed = true;
+            // Try to resume AudioContext if needed
+            try {
+              const AC = (window.AudioContext || window.webkitAudioContext);
+              if (AC) {
+                const ac = new AC();
+                if (ac.state === 'suspended') {
+                  try { await ac.resume(); } catch (e) {/* ignore */ }
+                }
+              }
+            } catch (e) {/* ignore */ }
+
+            // speak the welcome msg
+            speakNow(welcomeMsg, true);
+
+            // remove overlay gently
+            ov.style.opacity = '0';
+            setTimeout(() => ov.remove(), 280);
+          } catch (e) {
+            console.warn("unlock error:", e);
+            ov.remove();
+          }
+        };
+
+        // Use non-passive listeners so actual gesture is counted by some browsers
+        ov.addEventListener('click', unlock, { once: true, passive: false });
+        ov.addEventListener('touchstart', unlock, { once: true, passive: false });
+        ov.addEventListener('keydown', unlock, { once: true, passive: false });
+      }
+    })();
+
+    (async function welcomeAutoPlay() {
+      const welcomeMsg = "Welcome. To begin, press the Start Scan button at the bottom left to start scanning for QR codes.";
+      const visualHintText = "Tap anywhere to enable voice prompts.";
+
+      async function speakNow(msg, interrupt = false) {
+        try {
+          if (typeof TTS !== 'undefined' && TTS && typeof TTS.speak === 'function') {
+            TTS.speak(msg, interrupt);
+            return true;
+          } else if (window.speechSynthesis) {
+            const utt = new SpeechSynthesisUtterance(msg);
+            // utt.lang = 'en-US'; // adjust if needed
+            speechSynthesis.speak(utt);
+            return true;
+          }
+        } catch (e) {
+          console.warn("speakNow failed:", e);
+        }
+        return false;
+      }
+
+      // Try to speak right away
+      let started = false;
+      try {
+        // update UI text immediately
+        overlayText.textContent = welcomeMsg;
+        srAnnounce.textContent = welcomeMsg;
+
+        // Try to use TTS or SpeechSynthesis
+        started = await speakNow(welcomeMsg, false);
+
+        // Wait briefly to detect whether speech actually started
+        await new Promise(r => setTimeout(r, 700));
+        // If TTS has an internal state we can check:
+        if (typeof TTS !== 'undefined' && TTS && TTS.speaking) started = started || TTS.speaking;
+        if (window.speechSynthesis && window.speechSynthesis.speaking) started = true;
+      } catch (e) {
+        console.warn("Welcome speak attempt error:", e);
+      }
+
+      if (started) {
+        // success: ensure any gesture hint is removed
+        document.body.classList.remove('needs-gesture');
+        return;
+      }
+
+      // If we reach here, autoplay was likely blocked — show visual hint and unlock on first gesture
+      try {
+        overlayText.textContent = visualHintText;
+        srAnnounce.textContent = visualHintText;
+        document.body.classList.add('needs-gesture');
+
+        const unlockAndSpeak = async () => {
+          // mark gesture so other flows know speech/mic is allowed
+          userGesturePerformed = true;
+
+          // remove hint
+          document.body.classList.remove('needs-gesture');
+          srAnnounce.textContent = "";
+          overlayText.textContent = "Voice enabled.";
+
+          // Some browsers require an AudioContext resume — try make/resume one (safe no-op if not allowed)
+          try {
+            if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+              const AC = (window.AudioContext || window.webkitAudioContext);
+              const ac = new AC();
+              if (ac.state === 'suspended') {
+                try { await ac.resume(); } catch (e) { /* ignore */ }
+              }
+            }
+          } catch (e) { /* ignore */ }
+
+          // Small delay then speak
+          setTimeout(() => {
+            speakNow(welcomeMsg, true);
+          }, 220);
+        };
+
+        // Passive event listeners would not count as user gesture for some browsers — use non-passive once
+        const opts = { once: true, passive: true };
+        document.addEventListener('click', unlockAndSpeak, opts);
+        document.addEventListener('touchstart', unlockAndSpeak, opts);
+        document.addEventListener('keydown', unlockAndSpeak, { once: true, passive: true });
+      } catch (e) {
+        console.warn("Failed to setup gesture unlock for welcome:", e);
+      }
+    })();
+
   </script>
 </body>
 
