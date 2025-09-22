@@ -2121,30 +2121,3 @@ log("Camera will remain active during navigation for real-time QR detection");
 </script>
 </body>
 </html>;
-  }
-  announce("Camera stopped.", false);
-};
-
-restartBtn.onclick = () => { 
-  if (navigationState.active) {
-    cancelNavigation();();
-      }
-    }
-  }
-
-  // Draw navigation path if active
-  if (navigationState.active && navigationState.fullPath.length > 1) {
-    ctx.strokeStyle = "#ff6b35";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    for (let i = 0; i < navigationState.fullPath.length - 1; i++) {
-      const current = navigationState.fullPath[i];
-      const next = navigationState.fullPath[i + 1];
-      if (node_coords[current] && node_coords[next]) {
-        const pa = project(node_coords[current]);
-        const pb = project(node_coords[next]);
-        if (i === 0) ctx.moveTo(pa[0], pa[1]);
-        ctx.lineTo(pb[0], pb[1]);
-      }
-    }
-    ctx.stroke
