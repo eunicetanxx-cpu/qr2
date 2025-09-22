@@ -150,7 +150,7 @@
    </div>
 
    <div id="previewWrap">
-     <canvas id="previewCanvas" width="1000" height="500" aria-label="Camera preview for sighted helper"></canvas>
+     <canvas id="previewCanvas" width="600" height="800" aria-label="Camera preview for sighted helper"></canvas>
    </div>
 
    <div id="log" aria-live="polite" role="log"></div>
@@ -1687,7 +1687,7 @@ async function waitForNextCommand(expectedNext) {
   navigationState.waitingForVoice = true;
   
   await TTS.forceStopAndWait();
-  announce(`Say 'next' when you reach ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
+  announce(`Say 'next' to continue to ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
   
   await TTS.waitForFinish();
   
