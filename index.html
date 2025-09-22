@@ -1688,7 +1688,13 @@ async function waitForNextCommand(expectedNext) {
   TTS.stop();
   announce(`Say 'next' when you reach ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
   
+  // CRITICAL: Wait for TTS to completely finish before starting microphone
   await TTS.waitForFinish();
+  
+  // Additional delay to ensure TTS audio has fully stopped and microphone doesn't pick up echoes
+  await new Promise(r => setTimeout(r, 1500));
+  
+  log("🎤 Starting voice input for navigation commands");
   
   // Wait indefinitely for user response with improved command handling
   while (navigationState.active && navigationState.waitingForVoice) {
@@ -1714,6 +1720,17 @@ async function waitForNextCommand(expectedNext) {
     
     const command = response.toLowerCase().trim();
     log(`Navigation command heard: "${command}"`);
+    
+    // FILTER OUT SYSTEM INSTRUCTIONS - ignore if it contains system instruction phrases
+    if (command.includes('say next when you reach') || 
+        command.includes('or skip to skip') || 
+        command.includes('or cancel to stop') ||
+        command.includes('this waypoint') ||
+        command.length > 50) { // System instructions are typically long
+      log("🚫 Ignoring system instruction echo, continuing to listen...");
+      await new Promise(r => setTimeout(r, 500));
+      continue;
+    }
     
     // Improved command parsing with priority handling
     let commandHandled = false;
