@@ -7,366 +7,94 @@
   <style>
     :root{
       --bg:#000; --card:#0b1220; --accent:#ffd54f; --accent-2:#00e676; --text:#fff;
-      --muted:#c0c8d2; --danger:#ff4444; --success:#4caf50; --warning:#ffeb3b;
-      --btn-h:72px; --btn-font:22px; --text-size:18px;
+      --muted:#9aa8b2;
+      --btn-h:64px; --btn-font:20px;
     }
-    html,body{
-      height:100%; margin:0; 
-      background:linear-gradient(180deg,#05070a 0%, #0b0f14 100%); 
-      color:var(--text); 
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; 
-      -webkit-font-smoothing:antialiased;
-      font-size: var(--text-size);
-      line-height: 1.5;
-    }
-    
+    html,body{height:100%; margin:0; background:linear-gradient(180deg,#05070a 0%, #0b0f14 100%); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; -webkit-font-smoothing:antialiased;}
     .app {
       max-width: 980px;
       margin: 12px auto;
-      padding: 20px;
-      padding-bottom: 240px;
+      padding: 18px;
+      padding-bottom: 200px;
       background: linear-gradient(180deg, #071018 0, #07121a 100%);
-      border-radius: 16px;
-      box-shadow: 0 12px 48px rgba(0,0,0,0.7);
-      border: 2px solid rgba(255,255,255,0.05);
+      border-radius: 14px;
+      box-shadow: 0 8px 36px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.02);
     }
-    
-    header { 
-      display:flex; gap:16px; align-items:center; 
-      margin-bottom: 20px;
-    }
-    
-    h1 { 
-      font-size:28px; margin:0; color:var(--accent); 
-      letter-spacing:0.8px; font-weight: 700;
-    }
-    
-    .subtitle { 
-      color: var(--muted); font-size:16px; margin-top:6px; 
-      font-weight: 500;
-    }
+    header { display:flex; gap:12px; align-items:center; }
+    h1 { font-size:24px; margin:0; color:var(--accent); letter-spacing:0.6px; }
+    .subtitle { color: var(--muted); font-size:14px; margin-top:4px; }
 
-    .controls { 
-      margin:20px 0; display:flex; gap:16px; 
-      flex-wrap:wrap; align-items:center; 
-    }
-    
-    .btn { 
-      background:var(--accent); color:#000; border:none; 
-      padding:16px 24px; border-radius:16px; 
-      font-size:var(--btn-font); font-weight: 600;
-      height:var(--btn-h); min-width:180px; cursor:pointer; 
-      box-shadow:0 8px 24px rgba(0,0,0,0.6);
-      border: 3px solid transparent;
-      transition: all 0.2s ease;
-    }
-    
-    .btn:hover { 
-      transform: translateY(-2px);
-      box-shadow:0 12px 32px rgba(0,0,0,0.7);
-    }
-    
-    .btn:focus { 
-      outline: 4px solid var(--accent);
-      outline-offset: 4px; 
-      border: 3px solid var(--accent);
-    }
-    
-    .btn.secondary { 
-      background:transparent; color:var(--text); 
-      border:3px solid rgba(255,255,255,0.1); 
-      box-shadow:0 4px 16px rgba(0,0,0,0.4);
-    }
-    
-    .btn.secondary:focus {
-      border: 3px solid var(--accent);
-    }
-    
-    .btn.ghost { 
-      background:transparent; color:var(--accent); 
-      border:3px dashed rgba(255,213,79,0.3); 
-    }
-    
-    .btn.green { background:var(--success); color:#fff; font-weight: 700; }
-    .btn.red { background:var(--danger); color:#fff; font-weight: 700; }
-    .btn.yellow { background:var(--warning); color:#000; font-weight: 700; }
-    .btn.grey { background:#666; color:#fff; }
-
-    .checkbox-control {
-      display:flex; align-items:center; gap:12px; 
-      margin-left:8px; color:var(--muted); 
-      font-size:var(--text-size); font-weight: 500;
-    }
-    
-    .checkbox-control input[type="checkbox"] {
-      width: 24px; height: 24px;
-      accent-color: var(--accent);
-    }
+    .controls { margin:14px 0; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .btn { background:var(--accent); color:#000; border:none; padding:12px 18px; border-radius:12px; font-size:var(--btn-font); height:var(--btn-h); min-width:150px; cursor:pointer; box-shadow:0 8px 18px rgba(0,0,0,0.5); }
+    .btn.secondary { background:transparent; color:var(--text); border:2px solid rgba(255,255,255,0.06); }
+    .btn.ghost { background:transparent; color:var(--accent); border:2px dashed rgba(255,213,79,0.18); }
+    .btn:focus { outline:4px solid rgba(255,213,79,0.25); outline-offset:3px; }
+    .select { font-size:18px; padding:12px; border-radius:12px; height:var(--btn-h); background:#07141a; color:var(--text); border:1px solid rgba(255,255,255,0.03); min-width:140px; }
+    .btn.green { background:#4caf50; color:#fff; }
+    .btn.red { background:#f44336; color:#fff; }
+    .btn.yellow { background:#ffeb3b; color:#000; }
 
     .main-controls {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: linear-gradient(180deg, #071018 0%, #050a10 100%);
-      padding: 20px;
+      background: #071018;
+      padding: 14px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
       z-index: 1000;
-      box-shadow: 0 -8px 24px rgba(0,0,0,0.8);
-      border-top: 2px solid rgba(255,255,255,0.05);
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.6);
     }
-    
-    .main-controls .controls-row { 
-      display: flex; justify-content: space-between; 
-      gap: 16px; max-width: 980px; margin: 0 auto;
-      width: 100%;
-    }
+    .main-controls .controls-row { display: flex; justify-content: space-between; gap: 12px; }
+    .main-controls .controls-row:last-child { justify-content: center; }
 
-    .statusBox { 
-      margin-top:16px; padding:20px; 
-      background:linear-gradient(180deg,#071018,#06121a); 
-      border-radius:16px; 
-      border:2px solid rgba(0,255,136,0.08); 
-      min-height:120px; display:flex; gap:16px; 
-      align-items:flex-start; 
-    }
-    
+    .statusBox { margin-top:12px; padding:14px; background:linear-gradient(180deg,#071018,#06121a); border-radius:12px; border:1px solid rgba(0,255,136,0.03); min-height:100px; display:flex; gap:12px; align-items:flex-start; }
     #leftStatus { flex:1; }
-    
-    #overlayText { 
-      font-weight:800; font-size:24px; 
-      color:var(--text); margin-bottom:8px; 
-      line-height: 1.3;
-    }
-    
-    #srAnnounce { 
-      font-size:var(--text-size); color:var(--muted); 
-      margin-top:8px; font-weight: 500;
-    }
-    
-    #listeningBox { 
-      margin-top:12px; font-size:20px; 
-      color:#ffb74d; min-height:28px; 
-      font-weight: 600; padding: 8px 0;
-    }
+    #overlayText { font-weight:800; font-size:20px; color:var(--text); margin-bottom:6px; }
+    #srAnnounce { font-size:17px; color:var(--muted); margin-top:6px; }
+    #listeningBox { margin-top:10px; font-size:18px; color:#ffb74d; min-height:22px; }
 
-    .navigation-progress { 
-      margin-top:12px; padding:16px; 
-      background:#0a1520; border-radius:12px; 
-      border:2px solid rgba(0,255,136,0.15); 
-    }
-    
-    .nav-step { 
-      padding:12px 16px; margin:6px 0; 
-      border-radius:8px; background:#061217; 
-      color:var(--muted); font-size:var(--text-size); 
-      font-weight: 500;
-    }
-    
-    .nav-step.current { 
-      background:var(--accent-2); color:#000; 
-      font-weight:800; font-size: 20px;
-    }
-    
-    .nav-step.completed { 
-      background:#2e7d32; color:#fff; 
-      font-weight: 600;
-    }
+    .navigation-progress { margin-top:10px; padding:12px; background:#0a1520; border-radius:8px; border:1px solid rgba(0,255,136,0.1); }
+    .nav-step { padding:8px 12px; margin:4px 0; border-radius:6px; background:#061217; color:var(--muted); font-size:16px; }
+    .nav-step.current { background:var(--accent-2); color:#000; font-weight:bold; }
+    .nav-step.completed { background:#2e7d32; color:#fff; }
 
-    .scan-progress { 
-      margin-top:12px; display:flex; gap:16px; 
-      align-items:center; flex-wrap:wrap; 
-    }
-    
-    .progress-pill { 
-      padding:14px 18px; border-radius:999px; 
-      background:#071018; color:var(--muted); 
-      font-size:var(--text-size); font-weight: 600;
-      border:2px solid rgba(255,255,255,0.05); 
-      min-width:220px; text-align:center; 
-    }
-    
-    .progress-pill.found { 
-      background:var(--accent-2); color:#000; 
-      font-weight:800; font-size: 20px;
-      border:3px solid rgba(0,64,0,0.8); 
-    }
+    .scan-progress { margin-top:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .progress-pill { padding:10px 14px; border-radius:999px; background:#071018; color:var(--muted); font-size:18px; border:1px solid rgba(255,255,255,0.02); min-width:200px; text-align:center; }
+    .progress-pill.found { background:var(--accent-2); color:#000; font-weight:800; border:2px solid rgba(0,64,0,0.7); }
 
-    #previewWrap { 
-      display:flex; gap:16px; margin-top:20px; 
-      align-items:flex-start; justify-content:center; 
-    }
-    
+    #previewWrap { display:flex; gap:12px; margin-top:14px; align-items:flex-start; justify-content:center; }
     #previewCanvas {
       max-width: 100%;
-      width: 100%;
       height: auto;
       background: #000;
-      border-radius: 12px;
-      border: 3px solid #0b1b2a;
-      object-fit: cover;
-      display: block;
+      border-radius: 10px;
+      border: 2px solid #0b1b2a;
+      display:block;
       margin: 0 auto;
     }
 
-    .alerts { 
-      padding:16px; border-radius:12px; 
-      background:#061217; 
-      border:2px solid rgba(255,255,255,0.05); 
-      min-height:120px; color:var(--muted); 
-    }
-    
-    .alerts h4 { 
-      margin:0 0 8px 0; color:var(--accent); 
-      font-size:var(--text-size); font-weight: 700;
-    }
-    
-    .alerts ul { 
-      margin:0; padding-left:24px; 
-      font-size:var(--text-size); color:var(--muted); 
-    }
-    
-    .alerts li { 
-      margin-bottom:8px; font-weight: 500;
-    }
+    .alerts { padding:12px; border-radius:10px; background:#061217; border:1px solid rgba(255,255,255,0.02); min-height:100px; color:var(--muted); }
+    .alerts h4 { margin:0 0 6px 0; color:var(--accent); font-size:16px; }
+    .alerts ul { margin:0; padding-left:18px; font-size:16px; color:var(--muted); }
+    .alerts li { margin-bottom:6px; }
 
-    #log { 
-      margin-top:16px; background:#02060a; 
-      color:#b8d3de; padding:16px; 
-      border-radius:12px; height:180px; 
-      overflow:auto; font-size:16px; 
-      border:2px solid rgba(255,255,255,0.05); 
-      font-family: 'Courier New', monospace;
-    }
+    #log { margin-top:12px; background:#02060a; color:#b8d3de; padding:12px; border-radius:10px; height:160px; overflow:auto; font-size:14px; border:1px solid rgba(255,255,255,0.02); }
 
-    .map-modal { 
-      position:fixed; inset:0; display:none; 
-      align-items:center; justify-content:center; 
-      background:rgba(0,0,0,0.85); z-index:999; 
-    }
-    
-    .map-modal .box { 
-      background:#071018; padding:20px; 
-      max-width:900px; width:95%; 
-      max-height:85%; overflow:auto; 
-      border-radius:16px; 
-      border:3px solid rgba(255,255,255,0.08); 
-      color:#fff; 
-    }
-    
-    #mapCanvas { 
-      width:100%; height:auto; border-radius:8px; 
-      background:#fff; display:block; 
-    }
+    .map-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.75); z-index:999; }
+    .map-modal .box { background:#071018; padding:14px; max-width:900px; width:95%; max-height:85%; overflow:auto; border-radius:10px; border:2px solid rgba(255,255,255,0.02); color:#fff; }
+    #mapCanvas { width:100%; height:auto; border-radius:6px; background:#fff; display:block; }
 
-    footer { 
-      margin-top:20px; color:var(--muted); 
-      font-size:15px; text-align:center; 
-      font-weight: 500; line-height: 1.4;
-    }
+    footer { margin-top:14px; color:var(--muted); font-size:13px; text-align:center; }
 
-    .visually-hidden { 
-      position:absolute !important; height:1px; 
-      width:1px; overflow:hidden; 
-      clip:rect(1px,1px,1px,1px); 
-      white-space:nowrap; 
-    }
-    
-    /* Mobile optimizations */
-    @media (max-width:768px){
-      .app {
-        margin: 8px;
-        padding: 16px;
-        border-radius: 12px;
-      }
-      
-      h1 { font-size: 24px; }
-      .subtitle { font-size: 15px; }
-      
-      #previewCanvas { 
-        width: 100%;
-        height: 300px;
-        object-fit: cover;
-      }
-      
-      .controls { gap:12px; }
-      .btn { 
-        min-width:140px; font-size:20px; 
-        height:64px; padding: 12px 18px;
-      }
-      
-      .main-controls {
-        padding: 16px 12px;
-      }
-      
-      .main-controls .controls-row {
-        flex-direction: column;
-        gap: 12px;
-      }
-      
-      .main-controls .btn {
-        width: 100%;
-        min-width: auto;
-      }
-      
-      #overlayText { font-size: 20px; }
-      .progress-pill { min-width: 180px; font-size: 16px; }
-    }
-    
-    @media (max-width:480px){
-      .app {
-        margin: 4px;
-        padding: 12px;
-      }
-      
-      .statusBox {
-        flex-direction: column;
-        gap: 12px;
-      }
-      
-      #previewCanvas {
-        height: 250px;
-      }
-      
-      .btn {
-        font-size: 18px;
-        height: 58px;
-      }
-    }
-    
-    /* Portrait mode specific fixes */
-    @media (orientation: portrait) {
-      #previewCanvas {
-        aspect-ratio: 3/4;
-        max-height: 400px;
-      }
-    }
-    
-    /* High contrast mode support */
-    @media (prefers-contrast: high) {
-      :root {
-        --bg: #000;
-        --text: #fff;
-        --accent: #ffff00;
-        --muted: #ddd;
-      }
-      
-      .btn {
-        border: 4px solid currentColor;
-      }
-    }
-    
-    /* Reduced motion support */
-    @media (prefers-reduced-motion: reduce) {
-      .btn {
-        transition: none;
-      }
-      
-      .btn:hover {
-        transform: none;
-      }
+    .visually-hidden { position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
+    @media (max-width:760px){
+      #previewCanvas { width:100%; height:auto; }
+      .controls { gap:8px; }
+      .btn { min-width:120px; font-size:18px; height:56px; }
     }
   </style>
 
@@ -381,14 +109,17 @@
     <header>
       <div>
         <h1 id="appTitle">VI Indoor Navigation</h1>
-        <div class="subtitle">Color QR navigation • Voice-first • Obstacle alerts</div>
+        <div class="subtitle">Step-by-step QR navigation with voice guidance</div>
       </div>
     </header>
 
    <div class="controls" role="region" aria-label="Settings">
-    <label class="checkbox-control">
-      <input type="checkbox" id="enableDetect" checked aria-label="Enable object detection for obstacle warnings"> 
-      <span>Enable Object Detection</span>
+    <select id="colorFilter" class="select" aria-label="Filter QR color. Choose Any, Red, Green or Blue">
+      <option>Any</option><option>Red</option><option>Green</option><option>Blue</option>
+    </select>
+
+    <label style="display:flex; align-items:center; gap:8px; margin-left:6px; color:var(--muted); font-size:16px;">
+      <input type="checkbox" id="enableDetect" checked aria-label="Enable object detection"> Enable Object Detection
     </label>
    </div>
 
@@ -399,7 +130,7 @@
       <div id="listeningBox" aria-hidden="true"></div>
       
       <div id="navigationProgress" class="navigation-progress" style="display:none;">
-        <h4 style="color:var(--accent); margin:0 0 12px 0; font-size: 20px;">Navigation Steps</h4>
+        <h4 style="color:var(--accent); margin:0 0 8px 0;">Navigation Steps</h4>
         <div id="navStepsList"></div>
       </div>
       
@@ -419,16 +150,16 @@
    </div>
 
    <div id="previewWrap">
-     <canvas id="previewCanvas" width="1280" height="720" aria-label="Camera preview for sighted helper"></canvas>
+     <canvas id="previewCanvas" width="800" height="600" aria-label="Camera preview for sighted helper"></canvas>
    </div>
 
    <div id="log" aria-live="polite" role="log"></div>
 
    <div class="map-modal" id="mapModal" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
      <div class="box">
-       <h3 id="mapTitle" style="font-size: 22px; margin-bottom: 16px;">Map Preview</h3>
+       <h3 id="mapTitle">Map Preview</h3>
        <canvas id="mapCanvas" width="900" height="600"></canvas>
-       <div style="text-align:right; margin-top:12px;">
+       <div style="text-align:right; margin-top:8px;">
          <button id="closeMap" class="btn secondary" aria-label="Close map">Close</button>
        </div>
      </div>
@@ -436,9 +167,9 @@
 
    <div class="controls main-controls" role="region" aria-label="Main controls">
      <div class="controls-row">
-       <button id="startBtn" class="btn green" aria-pressed="false" aria-label="Start scanning for QR codes. Press S key as shortcut.">Start Scan</button>
-       <button id="stopBtn" class="btn red" aria-pressed="false" aria-label="Stop scanning. Press Space key as shortcut.">Stop Scan</button>
-       <button id="voiceDestBtn" class="btn yellow" aria-label="Voice destination input. Press V key as shortcut.">Voice Destination</button>
+       <button id="startBtn" class="btn green" aria-pressed="false" aria-label="Start scanning for QR codes (S)">Start Scan</button>
+       <button id="stopBtn" class="btn red" aria-pressed="false" aria-label="Stop scanning (Space)">Stop Scan</button>
+       <button id="voiceDestBtn" class="btn yellow" aria-label="Voice destination input (V)">Voice Destination</button>
      </div>
    </div>
 
@@ -459,6 +190,7 @@ const logEl = document.getElementById('log');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const voiceDestBtn = document.getElementById('voiceDestBtn');
+const colorFilterEl = document.getElementById('colorFilter');
 const mapBtn = document.getElementById('mapBtn');
 const mapModal = document.getElementById('mapModal');
 const mapCanvas = document.getElementById('mapCanvas');
@@ -871,25 +603,20 @@ async function startCamera() {
     video.srcObject = stream;
     await video.play();
 
-    canvasDisp.width = video.videoWidth || 1280;
-    canvasDisp.height = video.videoHeight || 720;
-    
-    // Improved mobile responsive canvas sizing
-    const containerWidth = previewCanvas.parentElement.clientWidth;
-    const aspectRatio = canvasDisp.width / canvasDisp.height;
-    
-    if (window.innerWidth <= 768) {
-      // Mobile: prioritize full width, constrain height
-      previewCanvas.style.width = '100%';
-      previewCanvas.style.height = 'auto';
-      previewCanvas.style.maxHeight = '400px';
-    } else {
-      // Desktop: use original sizing
-      previewCanvas.width = Math.min(1280, canvasDisp.width);
-      previewCanvas.height = Math.min(720, canvasDisp.height);
-    }
+    // Get actual video dimensions
+    const vw = video.videoWidth || 1280;
+    const vh = video.videoHeight || 720;
 
-    // Center scan box
+    // scale to fit inside 1280x720 while keeping ratio
+    const scale = Math.min(1280 / vw, 720 / vh, 1);
+
+    canvasDisp.width  = Math.round(vw * scale);
+    canvasDisp.height = Math.round(vh * scale);
+
+    previewCanvas.width  = canvasDisp.width;
+    previewCanvas.height = canvasDisp.height;
+
+        // Center scan box
     scanBox.size = Math.min(SCAN_SIZE, Math.floor(Math.min(canvasDisp.width, canvasDisp.height) * 0.5));
     scanBox.x = Math.floor((canvasDisp.width - scanBox.size)/2);
     scanBox.y = Math.floor((canvasDisp.height - scanBox.size)/2);
@@ -957,13 +684,13 @@ function drawPreviewFrame(tmpCanvas) {
     const sx = previewCanvas.width / tmpCanvas.width;
     const sy = previewCanvas.height / tmpCanvas.height;
     previewCtx.strokeStyle = 'rgba(0,255,128,0.9)';
-    previewCtx.lineWidth = Math.max(3, Math.round(previewCanvas.width * 0.006));
+    previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
     previewCtx.strokeRect(Math.round(scanBox.x*sx), Math.round(scanBox.y*sy), Math.round(scanBox.size*sx), Math.round(scanBox.size*sy));
 
     // Overlay object detections
     if (latestDetections && latestDetections.length && enableDetectCheckbox.checked) {
       previewCtx.save();
-      previewCtx.lineWidth = Math.max(3, Math.round(previewCanvas.width * 0.006));
+      previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
       for (const d of latestDetections) {
         const [x,y,w,h] = d.bbox;
         const rx = Math.round(x * sx), ry = Math.round(y * sy), rw = Math.round(w * sx), rh = Math.round(h * sy);
@@ -972,7 +699,7 @@ function drawPreviewFrame(tmpCanvas) {
         previewCtx.beginPath();
         previewCtx.strokeRect(rx, ry, rw, rh);
         const label = `${d.class} ${(d.score*100).toFixed(0)}%`;
-        previewCtx.font = `bold ${Math.max(14, Math.round(previewCanvas.width * 0.02))}px Arial`;
+        previewCtx.font = `${14}px Arial`;
         const tw = previewCtx.measureText(label).width + 10;
         previewCtx.fillRect(rx, Math.max(ry-22, 0), tw, 20);
         previewCtx.fillStyle = '#fff';
@@ -1014,12 +741,12 @@ async function processFrame(video) {
   
   // Draw scan box for sighted helper
   tmpCtx.strokeStyle = '#00ff88'; 
-  tmpCtx.lineWidth = Math.max(3, Math.round(canvasDisp.width * 0.006));
+  tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
   tmpCtx.strokeRect(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
 
   // Draw object detection boxes if available
   if (latestDetections && latestDetections.length > 0 && enableDetectCheckbox.checked) {
-    tmpCtx.lineWidth = Math.max(3, Math.round(canvasDisp.width * 0.006));
+    tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
     for (const d of latestDetections) {
       tmpCtx.strokeStyle = 'rgba(255,80,80,0.9)';
       tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
@@ -1053,8 +780,9 @@ async function processFrame(video) {
           handleNavigationQRScan(scannedLocation);
         }
       } else {
-        // Normal initial 3-color QR scanning - scan all colors automatically
-        const colorOrder = ['blue','red','green'];
+        // Normal initial 3-color QR scanning
+        const targetFilter = (colorFilterEl.value === "Any") ? null : colorFilterEl.value.toLowerCase();
+        const colorOrder = targetFilter ? [targetFilter] : ['blue','red','green'];
         
         for (const color of colorOrder) {
           if (foundResults.has(color)) continue;
@@ -1093,7 +821,7 @@ async function processFrame(video) {
         }
       }
 
-      // Object detection logic (enhanced for VI users)
+      // Object detection logic
       const now = performance.now();
       if (enableDetectCheckbox.checked && cocoReady && (now - lastDetectTime > DETECTION_INTERVAL_MS)) {
         lastDetectTime = now;
@@ -1119,7 +847,7 @@ async function processFrame(video) {
             updateAlertsList([]);
           }
 
-          // Enhanced obstacle detection logic for VI users
+          // Obstacle detection logic
           let candidate = null;
           const fh = canvasDisp.height;
           const fw = canvasDisp.width;
@@ -2221,59 +1949,57 @@ function cancelNavigation() {
 /* ---------------------------
    UI Event Handlers
    --------------------------- */
-function safeOn(el, event, handler) {
-  if (!el) { console.warn(`safeOn: element for ${event} not found`); return; }
-  el.addEventListener(event, handler);
-}
+startBtn.onclick = async () => { 
+  if (scannerRunning) { 
+    announce("Scanner already running.", false); 
+    return; 
+  } 
+  userGesturePerformed = true; 
+  await startCamera(); 
+};
 
-safeOn(startBtn, 'click', async () => {
-  if (scannerRunning) {
-    announce("Scanner already running.", false);
-    return;
+stopBtn.onclick = () => { 
+  stopCamera(); 
+  if (navigationState.active) {
+    cancelNavigation();
   }
-  userGesturePerformed = true;
-  await startCamera();
-});
+};
 
-safeOn(stopBtn, 'click', () => {
-  stopCamera();
-  if (navigationState.active) cancelNavigation();
-});
-
-safeOn(restartBtn, 'click', () => {
-  try {
-    if (navigationState.active) cancelNavigation();
-    stopCamera();
-    foundResults.clear();
-    actionsTriggered = false;
-    scanStartTime = Date.now();
-    setTimeout(() => { if (startBtn) startBtn.click(); }, 300);
-  } catch (e) { console.warn('restart error', e); }
-});
-
-safeOn(voiceDestBtn, 'click', async () => {
-  userGesturePerformed = true;
-  log('VoiceDest button clicked');
-  try {
-    await ask_destination_via_voice();
-  } catch (e) {
-    console.error('ask_destination_via_voice error', e);
-    announce("Voice input failed. Please type destination instead.", false);
-    show_destination_modal();
+restartBtn.onclick = () => { 
+  if (navigationState.active) {
+    cancelNavigation();
   }
-});
+  stopCamera(); 
+  foundResults.clear(); 
+  actionsTriggered=false; 
+  scanStartTime = Date.now(); 
+  setTimeout(()=>{ startBtn.click(); },300); 
+};
 
-safeOn(mapBtn, 'click', () => {
-  drawMap();
-  if (mapModal) mapModal.style.display = 'flex';
-  announce("Map opened. Close when ready.", false);
-});
+voiceDestBtn.onclick = async () => { 
+  userGesturePerformed = true; 
+  await ask_destination_via_voice(); 
+};
 
-safeOn(closeMap, 'click', () => {
-  if (mapModal) mapModal.style.display = 'none';
-  announce("Map closed.", false);
-});
+mapBtn.onclick = () => { 
+  drawMap(); 
+  mapModal.style.display = 'flex'; 
+  announce("Map opened. Close when ready.", false); 
+};
 
+closeMap.onclick = () => { 
+  mapModal.style.display = 'none'; 
+  announce("Map closed.", false); 
+};
+
+// Keyboard shortcuts
+window.addEventListener('keydown', (e) => {
+  if (e.key === 's' || e.key === 'S') { startBtn.click(); }
+  if (e.key === 'v' || e.key === 'V') { voiceDestBtn.click(); }
+  if (e.key === 'm' || e.key === 'M') { mapBtn.click(); }
+  if (e.key === 'r' || e.key === 'R') { restartBtn.click(); }
+  if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
+});
 
 /* ---------------------------
    OpenCV Initialization
