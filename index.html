@@ -904,8 +904,9 @@
         canvasDisp.width = video.videoWidth;
         canvasDisp.height = video.videoHeight;
 
-        preview.width = canvasDisp.width;
-        preview.height = canvasDisp.height;
+        preview.style.width = '100%';
+        preview.style.height = 'auto';
+        try { preview.style.aspectRatio = `${canvasDisp.width}/${canvasDisp.height}`; } catch(e) {}
 
         scanBox.x = Math.floor((canvasDisp.width - SCAN_SIZE) / 2);
         scanBox.y = Math.floor((canvasDisp.height - SCAN_SIZE) / 2);
