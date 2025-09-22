@@ -1963,7 +1963,7 @@
       navigationState.waitingForVoice = true;
 
       await TTS.forceStopAndWait();
-      announce(`Say 'next' to continue ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
+      announce(`Say 'next' to continue to ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
 
       await TTS.waitForFinish();
 
