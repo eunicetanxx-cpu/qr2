@@ -629,6 +629,32 @@
         });
       }
     };
+// ===== Audio unlock helper for iOS (resume WebAudio / allow audio output) =====
+const audioUnlock = {
+  ctx: null,
+  unlocked: false,
+  isIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; },
+  ensure() { if (this.ctx) return this.ctx; const AudioCtx = window.AudioContext || window.webkitAudioContext; if (!AudioCtx) return null; this.ctx = new AudioCtx(); return this.ctx; },
+  async unlock() {
+    try {
+      if (this.unlocked) return true;
+      const ctx = this.ensure();
+      if (!ctx) return false;
+      if (ctx.state === 'suspended') { try { await ctx.resume(); } catch(e){} }
+      try {
+        const buffer = ctx.createBuffer(1, 1, ctx.sampleRate || 22050);
+        const src = ctx.createBufferSource(); src.buffer = buffer; src.connect(ctx.destination);
+        try { src.start(0); } catch(e){}
+      } catch(e) { /* ignore */ }
+      await new Promise(r => setTimeout(r, 50));
+      this.unlocked = true; console.log('Audio unlocked (audioContext)'); return true;
+    } catch (e) { console.warn('Audio unlock failed', e); return false; }
+  }
+};
+
+async function ensureAudioForSpeech() { try { await audioUnlock.unlock(); } catch(e) { console.warn('ensureAudioForSpeech error', e); } }
+
+
 
     function announce(text, interrupt = false) {
       overlayText.textContent = text;
@@ -2264,6 +2290,7 @@
         try {
           // mark as user gesture so browsers allow speech features
           userGesturePerformed = true;
+          try { await ensureAudioForSpeech(); } catch(e) { console.warn(e); }
           voiceDestBtn.setAttribute('aria-pressed', 'true');
           log('VoiceDest button clicked (userGesturePerformed set)');
 
