@@ -127,7 +127,7 @@
 
    <div class="statusBox" role="status" aria-live="polite">
     <div id="leftStatus">
-      <div id="overlayText">Ready – Start Scan to begin. Voice input will be started automatically when needed.</div>
+      <div id="overlayText">Ready — Start Scan to begin. Voice input will be started automatically when needed.</div>
       <div id="srAnnounce" aria-live="polite" role="log">Status messages will be read aloud.</div>
       <div id="listeningBox" aria-hidden="true"></div>
       
@@ -180,7 +180,7 @@
      </div>
    </div>
 
-   <footer>Built for visually impaired users – spoken prompts, vibration and object alerts help navigation.</footer>
+   <footer>Built for visually impaired users — spoken prompts, vibration and object alerts help navigation.</footer>
   </div>
 
 <script>
@@ -256,7 +256,7 @@ try {
 } catch(e){ SR_AVAILABLE=false; }
 
 /* ---------------------------
-   Enhanced Text-to-Speech System with Better Timing
+   Enhanced Text-to-Speech System
    --------------------------- */
 const TTS = {
   queue: [], 
@@ -305,36 +305,16 @@ const TTS = {
     speechSynthesis.speak(this.currentUtterance);
   },
   
-  async waitForFinish() {
+  waitForFinish() {
     return new Promise(resolve => {
       const checkFinished = () => {
-        if (!this.speaking && this.queue.length === 0 && !speechSynthesis.speaking) {
+        if (!this.speaking && this.queue.length === 0) {
           resolve();
         } else {
           setTimeout(checkFinished, 100);
         }
       };
       checkFinished();
-    });
-  },
-
-  // Force a complete stop and wait for silence
-  async forceStopAndWait() {
-    this.stop();
-    this.queue = [];
-    speechSynthesis.cancel();
-    
-    // Wait for speechSynthesis to actually stop
-    return new Promise(resolve => {
-      const checkSilence = () => {
-        if (!speechSynthesis.speaking) {
-          // Add extra delay to ensure complete silence
-          setTimeout(resolve, 300);
-        } else {
-          setTimeout(checkSilence, 100);
-        }
-      };
-      checkSilence();
     });
   }
 };
@@ -970,7 +950,7 @@ function triggerAllActionsOnce() {
 }
 
 /* ---------------------------
-   Enhanced Speech Recognition System with Proper Timing
+   Speech Recognition System
    --------------------------- */
 function startSpeechRecognition({lang='en-US', interim=true, timeout=15000, onInterim=null} = {}) {
   return new Promise((resolve) => {
@@ -1330,16 +1310,13 @@ async function ask_destination_via_voice() {
   while (tries < 4) {
     tries++;
     
-    // CRITICAL FIX: Force stop all speech and wait for complete silence
-    await TTS.forceStopAndWait();
-    
+    // Stop any ongoing speech before listening
+    TTS.stop();
     announce("Please say your destination after the beep.", true);
     
-    // Wait for TTS to finish completely
+    // Wait for TTS to finish
     await TTS.waitForFinish();
-    
-    // Additional safety delay to ensure complete silence
-    await new Promise(r=>setTimeout(r, 1000));
+    await new Promise(r=>setTimeout(r, 800));
     
     const interimBox = document.getElementById('listeningBox');
     interimBox.style.display = 'block'; 
@@ -1358,17 +1335,13 @@ async function ask_destination_via_voice() {
     if (!transcript) {
       log("No transcript received");
       if (!userGesturePerformed && tries === 1) {
-        await TTS.forceStopAndWait();
         announce("I could not access the microphone automatically. Please press the Voice Destination button and allow microphone access, then speak after the beep.", false);
         voiceDestBtn.classList.add('secondary');
-        await TTS.waitForFinish();
-        await new Promise(r=>setTimeout(r,1000));
+        await new Promise(r=>setTimeout(r,1500));
         continue;
       }
-      await TTS.forceStopAndWait();
       announce("I didn't catch that. Let's try again.", false);
-      await TTS.waitForFinish();
-      await new Promise(r=>setTimeout(r,500));
+      await new Promise(r=>setTimeout(r,1000));
       continue;
     }
     
@@ -1377,10 +1350,8 @@ async function ask_destination_via_voice() {
     const bestMatch = findBestLocationMatch(transcript, candidates);
     
     if (!bestMatch) { 
-      await TTS.forceStopAndWait();
       announce("I couldn't find that location. Please say your destination again.", false);
-      await TTS.waitForFinish();
-      await new Promise(r=>setTimeout(r,500));
+      await new Promise(r=>setTimeout(r,1000));
       continue; 
     }
 
@@ -1389,15 +1360,12 @@ async function ask_destination_via_voice() {
     while (confirmAttempts < 3) {
       confirmAttempts++;
       
-      // CRITICAL FIX: Force stop all speech before confirmation
-      await TTS.forceStopAndWait();
-      
+      // Stop any speech and announce confirmation question
+      TTS.stop();
       announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
       
-      // Wait for TTS to finish completely
+      // Wait for TTS to finish before listening
       await TTS.waitForFinish();
-      
-      // Additional safety delay
       await new Promise(r => setTimeout(r, 1000));
       
       interimBox.style.display = 'block';
@@ -1414,10 +1382,8 @@ async function ask_destination_via_voice() {
       interimBox.style.display = 'none';
 
       if (!conf) {
-        await TTS.forceStopAndWait();
         announce("I didn't hear your response. Please say yes or no clearly.", false);
-        await TTS.waitForFinish();
-        await new Promise(r=>setTimeout(r,500));
+        await new Promise(r=>setTimeout(r,1000));
         continue;
       }
 
@@ -1425,41 +1391,31 @@ async function ask_destination_via_voice() {
       const verdict = interpretConfirmation(conf);
 
       if (verdict === 'yes') {
-        await TTS.forceStopAndWait();
         announce(`Confirmed. Starting navigation to ${bestMatch}.`, true);
         start_navigation(bestMatch); 
         return;
       } else if (verdict === 'no') {
-        await TTS.forceStopAndWait();
         announce("Okay, let's try again. Please say your destination.", true);
-        await TTS.waitForFinish();
-        await new Promise(r=>setTimeout(r,500));
+        await new Promise(r=>setTimeout(r,1000));
         break; // Break inner loop to restart destination asking
       } else if (verdict === 'ambiguous') {
-        await TTS.forceStopAndWait();
         announce("I heard mixed signals. Please say just 'yes' or 'no'.", false);
-        await TTS.waitForFinish();
-        await new Promise(r=>setTimeout(r,500));
+        await new Promise(r=>setTimeout(r,1000));
         continue; 
       } else {
-        await TTS.forceStopAndWait();
         announce("I didn't understand. Please say 'yes' to confirm or 'no' to try again.", false);
-        await TTS.waitForFinish();
-        await new Promise(r=>setTimeout(r,500));
+        await new Promise(r=>setTimeout(r,1000));
         continue;
       }
     }
     
     // If confirmation failed 3 times, restart destination input
     if (confirmAttempts >= 3) {
-      await TTS.forceStopAndWait();
       announce("Voice confirmation failed. Let's try selecting your destination again.", false);
-      await TTS.waitForFinish();
-      await new Promise(r=>setTimeout(r,500));
+      await new Promise(r=>setTimeout(r,1000));
     }
   }
   
-  await TTS.forceStopAndWait();
   announce("Voice input failed repeatedly. Please type destination instead.", false);
   show_destination_modal();
 }
@@ -1666,7 +1622,7 @@ async function giveCurrentInstruction() {
   
   const stepInfo = `Step ${stepNum} of ${totalSteps}. ${instruction}. Distance ${distance.toFixed(0)} meters.`;
   
-  await TTS.forceStopAndWait();
+  TTS.stop();
   announce(stepInfo, true);
   log(`🗺️ Navigation Step ${stepNum}/${totalSteps}: ${instruction} (${distance.toFixed(0)}m)`);
   overlayText.textContent = `Step ${stepNum}/${totalSteps}: Walk to ${next}`;
@@ -1685,16 +1641,13 @@ async function waitForNextCommand(expectedNext) {
   
   navigationState.waitingForVoice = true;
   
-  await TTS.forceStopAndWait();
+  TTS.stop();
   announce(`Say 'next' when you reach ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
   
   await TTS.waitForFinish();
   
   // Wait indefinitely for user response
   while (navigationState.active && navigationState.waitingForVoice) {
-    // Additional safety delay before starting recognition
-    await new Promise(r => setTimeout(r, 800));
-    
     const interimBox = document.getElementById('listeningBox');
     interimBox.style.display = 'block';
     interimBox.textContent = "Listening for 'next', 'skip', or 'cancel'...";
@@ -1753,7 +1706,7 @@ async function handleSkipWaypoint() {
   
   // If too many skips, offer direct route to destination
   if (navigationState.skipCount >= 2) {
-    await TTS.forceStopAndWait();
+    TTS.stop();
     announce(`You've skipped ${navigationState.skipCount} waypoints. Would you like me to direct you straight to the final destination? Say yes or no.`, false);
     
     await TTS.waitForFinish();
@@ -1774,7 +1727,6 @@ async function handleSkipWaypoint() {
     if (response && interpretConfirmation(response) === 'yes') {
       // Skip to final destination
       navigationState.currentStepIndex = navigationState.fullPath.length - 2;
-      await TTS.forceStopAndWait();
       announce(`Redirecting you directly to ${navigationState.destination}.`, true);
       await TTS.waitForFinish();
       setTimeout(() => {
@@ -1799,18 +1751,17 @@ function startQRVerification(expectedLocation) {
   navigationState.waitingForQR = true;
   navigationState.expectedLocation = expectedLocation;
   
-  TTS.forceStopAndWait().then(() => {
-    announce(`Please scan the QR code at ${expectedLocation} to verify your location.`, true);
-    overlayText.textContent = `Scan QR at ${expectedLocation} to continue`;
-    
-    // Start camera if not running
-    if (!scannerRunning) {
-      log("🎥 Starting camera for QR verification...");
-      setTimeout(() => {
-        startCamera();
-      }, 1500);
-    }
-  });
+  TTS.stop();
+  announce(`Please scan the QR code at ${expectedLocation} to verify your location.`, true);
+  overlayText.textContent = `Scan QR at ${expectedLocation} to continue`;
+  
+  // Start camera if not running
+  if (!scannerRunning) {
+    log("🎥 Starting camera for QR verification...");
+    setTimeout(() => {
+      startCamera();
+    }, 1500);
+  }
 }
 
 function handleNavigationQRScan(scannedLocation) {
@@ -1823,25 +1774,24 @@ function handleNavigationQRScan(scannedLocation) {
   
   if (scanned === expected || scanned.toLowerCase() === expected.toLowerCase()) {
     // Correct location scanned
-    TTS.forceStopAndWait().then(() => {
-      announce(`Verified: You are at ${scanned}.`, true);
-      
-      navigationState.waitingForQR = false;
-      navigationState.currentStepIndex++;
-      currentLocation = scanned;
-      
-      // Stop camera
-      stopCamera();
-      
-      // Update UI
-      updateNavigationProgressUI();
-      
-      // Continue to next step after brief pause
-      setTimeout(async () => {
-        await TTS.waitForFinish();
-        giveCurrentInstruction();
-      }, 2000);
-    });
+    TTS.stop();
+    announce(`Verified: You are at ${scanned}.`, true);
+    
+    navigationState.waitingForQR = false;
+    navigationState.currentStepIndex++;
+    currentLocation = scanned;
+    
+    // Stop camera
+    stopCamera();
+    
+    // Update UI
+    updateNavigationProgressUI();
+    
+    // Continue to next step after brief pause
+    setTimeout(async () => {
+      await TTS.waitForFinish();
+      giveCurrentInstruction();
+    }, 2000);
     
     return true;
   } else {
@@ -1884,22 +1834,21 @@ function finishNavigation() {
   destinationNode = null;
   drawMap();
   
-  TTS.forceStopAndWait().then(() => {
-    announce(`Congratulations! You have successfully arrived at your destination: ${finalDestination}. Navigation complete!`, true);
-    overlayText.textContent = `🎯 Arrived at ${finalDestination} - Navigation Complete!`;
-    
-    log(`🎯 Navigation completed successfully to ${finalDestination}`);
-    if (navigationState.skipCount > 0) {
-      log(`📊 Navigation stats: ${navigationState.skipCount} waypoints were skipped`);
-    }
-    
-    // Vibrate arrival pattern
-    vibrateArrival();
-    
-    setTimeout(() => {
-      announce("You can start a new navigation by pressing the Voice Destination button.", false);
-    }, 3000);
-  });
+  TTS.stop();
+  announce(`Congratulations! You have successfully arrived at your destination: ${finalDestination}. Navigation complete!`, true);
+  overlayText.textContent = `🎯 Arrived at ${finalDestination} - Navigation Complete!`;
+  
+  log(`🎯 Navigation completed successfully to ${finalDestination}`);
+  if (navigationState.skipCount > 0) {
+    log(`📊 Navigation stats: ${navigationState.skipCount} waypoints were skipped`);
+  }
+  
+  // Vibrate arrival pattern
+  vibrateArrival();
+  
+  setTimeout(() => {
+    announce("You can start a new navigation by pressing the Voice Destination button.", false);
+  }, 3000);
 }
 
 function cancelNavigation() {
@@ -1912,15 +1861,14 @@ function cancelNavigation() {
   navigationProgress.style.display = 'none';
   drawMap();
   
-  TTS.forceStopAndWait().then(() => {
-    announce("Navigation cancelled.", true);
-    overlayText.textContent = "Navigation cancelled";
-    log("❌ Navigation cancelled by user");
-    
-    if (scannerRunning) {
-      stopCamera();
-    }
-  });
+  TTS.stop();
+  announce("Navigation cancelled.", true);
+  overlayText.textContent = "Navigation cancelled";
+  log("❌ Navigation cancelled by user");
+  
+  if (scannerRunning) {
+    stopCamera();
+  }
 }
 
 /* ---------------------------
