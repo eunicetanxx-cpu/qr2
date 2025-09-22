@@ -268,7 +268,7 @@
       text-align: right;
     }
 
-    #previewCanvas {
+    #preview {
       width: 100%;
       max-width: 420px;
       height: auto;
@@ -279,7 +279,7 @@
     }
 
     @media (min-width: 640px) {
-      #previewCanvas {
+      #preview {
         max-width: 640px;
       }
     }
@@ -369,7 +369,7 @@
     }
 
     @media (max-width:760px) {
-      #previewCanvas {
+      #preview {
         width: 100%;
         height: 260px;
       }
@@ -444,7 +444,7 @@
     </div>
 
     <div id="previewWrap">
-      <canvas id="previewCanvas" aria-label="Camera preview for sighted helper"></canvas>
+      <img id="preview" aria-label="Camera preview for sighted helper" alt="Camera preview for sighted helper" />
     </div>
 
     <div id="log" aria-live="polite" role="log"></div>
@@ -481,8 +481,7 @@
        --------------------------- */
     const overlayText = document.getElementById('overlayText');
     const srAnnounce = document.getElementById('srAnnounce');
-    const previewCanvas = document.getElementById('previewCanvas');
-    const previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true });
+    const preview = document.getElementById('preview');
     const canvasDisp = document.createElement('canvas');
     const ctxDisp = canvasDisp.getContext('2d', { willReadFrequently: true });
     const logEl = document.getElementById('log');
@@ -905,8 +904,8 @@
         canvasDisp.width = video.videoWidth;
         canvasDisp.height = video.videoHeight;
 
-        previewCanvas.width = canvasDisp.width;
-        previewCanvas.height = canvasDisp.height;
+        preview.width = canvasDisp.width;
+        preview.height = canvasDisp.height;
 
         scanBox.x = Math.floor((canvasDisp.width - SCAN_SIZE) / 2);
         scanBox.y = Math.floor((canvasDisp.height - SCAN_SIZE) / 2);
@@ -973,36 +972,19 @@
        --------------------------- */
     function drawPreviewFrame(tmpCanvas) {
       try {
-        previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-        previewCtx.drawImage(tmpCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
-
-        // Overlay scan box (scaled)
-        const sx = previewCanvas.width / tmpCanvas.width;
-        const sy = previewCanvas.height / tmpCanvas.height;
-        previewCtx.strokeStyle = 'rgba(0,255,128,0.9)';
-        previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
-        previewCtx.strokeRect(Math.round(scanBox.x * sx), Math.round(scanBox.y * sy), Math.round(scanBox.size * sx), Math.round(scanBox.size * sy));
-
-        // Overlay object detections
-        if (latestDetections && latestDetections.length && enableDetectCheckbox.checked) {
-          previewCtx.save();
-          previewCtx.lineWidth = Math.max(2, Math.round(previewCanvas.width * 0.004));
-          for (const d of latestDetections) {
-            const [x, y, w, h] = d.bbox;
-            const rx = Math.round(x * sx), ry = Math.round(y * sy), rw = Math.round(w * sx), rh = Math.round(h * sy);
-            previewCtx.strokeStyle = 'rgba(255,80,80,0.95)';
-            previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
-            previewCtx.beginPath();
-            previewCtx.strokeRect(rx, ry, rw, rh);
-            const label = `${d.class} ${(d.score * 100).toFixed(0)}%`;
-            previewCtx.font = `${14}px Arial`;
-            const tw = previewCtx.measureText(label).width + 10;
-            previewCtx.fillRect(rx, Math.max(ry - 22, 0), tw, 20);
-            previewCtx.fillStyle = '#fff';
-            previewCtx.fillText(label, rx + 5, Math.max(ry - 8, 12));
-            previewCtx.fillStyle = 'rgba(255,80,80,0.85)';
-          }
-          previewCtx.restore();
+        // tmpCanvas already has the scan-box and detection overlays drawn onto it.
+        // Use an <img id="preview"> element as the visible preview (like the sample code).
+        // Convert tmp canvas to a data URL and set as image src.
+        try {
+          preview.src = tmpCanvas.toDataURL('image/png');
+        } catch (err) {
+          // fallback: draw to an offscreen canvas then set src
+          const off = document.createElement('canvas');
+          off.width = tmpCanvas.width;
+          off.height = tmpCanvas.height;
+          const offCtx = off.getContext('2d');
+          offCtx.drawImage(tmpCanvas, 0, 0);
+          preview.src = off.toDataURL('image/png');
         }
       } catch (e) {
         console.warn("drawPreviewFrame error", e);
