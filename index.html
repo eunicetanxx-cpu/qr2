@@ -261,27 +261,22 @@
       border: 2px solid rgba(0, 64, 0, 0.7);
     }
 
-    #previewWrap {
-      display: block;
-      margin-top: 12px;
-      text-align: right;
-    }
-
-    #previewCanvas {
+    #preview {
       width: 100%;
-      max-width: 420px;
-      height: auto;
-      border-radius: 8px;
+      max-width: 820px;
+      height: 360px;
       background: #000;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+      object-fit: cover;
       display: block;
     }
 
-    @media (min-width: 640px) {
-      #previewCanvas {
-        max-width: 640px;
+    @media (max-width: 640px) {
+      #preview {
+        height: 260px;
       }
     }
+
 
 
     .alerts {
@@ -443,9 +438,11 @@
       </div>
     </div>
 
-    <div id="previewWrap">
-      <canvas id="previewCanvas" aria-label="Camera preview for sighted helper"></canvas>
-    </div>
+
+    <img id="preview" alt="camera preview" />
+    <video id="video" autoplay playsinline style="display:none"></video>
+    <canvas id="canvasDisp" style="display:none"></canvas>
+
 
     <div id="log" aria-live="polite" role="log"></div>
 
@@ -902,14 +899,19 @@
         video.srcObject = stream;
         await video.play();
 
+        // after video.play() resolves
         canvasDisp.width = video.videoWidth;
         canvasDisp.height = video.videoHeight;
 
-        previewCanvas.width = canvasDisp.width;
-        previewCanvas.height = canvasDisp.height;
+        // set preview element size attributes (keeps aspect when showing the dataURL)
+        preview.width = Math.min(820, video.videoWidth);
+        preview.height = Math.min(360, video.videoHeight);
 
-        scanBox.x = Math.floor((canvasDisp.width - SCAN_SIZE) / 2);
-        scanBox.y = Math.floor((canvasDisp.height - SCAN_SIZE) / 2);
+        // compute scanBox centered in canvasDisp
+        scanBox.size = Math.min(SCAN_SIZE, Math.floor(Math.min(canvasDisp.width, canvasDisp.height) * 0.5));
+        scanBox.x = Math.floor((canvasDisp.width - scanBox.size) / 2);
+        scanBox.y = Math.floor((canvasDisp.height - scanBox.size) / 2);
+
 
         // Center scan box
         scanBox.size = Math.min(SCAN_SIZE, Math.floor(Math.min(canvasDisp.width, canvasDisp.height) * 0.5));
@@ -1027,165 +1029,176 @@
       // Draw frame into processing canvas
       ctxDisp.drawImage(video, 0, 0, canvasDisp.width, canvasDisp.height);
 
-      // Create temporary preview canvas
+      // assume ctxDisp already has the live frame drawn via ctxDisp.drawImage(video,...)
       const tmp = document.createElement('canvas');
       tmp.width = canvasDisp.width;
       tmp.height = canvasDisp.height;
       const tmpCtx = tmp.getContext('2d');
+
+      // base image
       tmpCtx.drawImage(canvasDisp, 0, 0);
 
-      // Draw scan box for sighted helper
-      tmpCtx.strokeStyle = '#00ff88';
+      // scan box overlay
+      tmpCtx.strokeStyle = '#00ff00';
       tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
       tmpCtx.strokeRect(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
 
-      // Draw object detection boxes if available
+      // draw object detection boxes (if available)
       if (latestDetections && latestDetections.length > 0 && enableDetectCheckbox.checked) {
+        tmpCtx.font = '18px Arial';
         tmpCtx.lineWidth = Math.max(2, Math.round(canvasDisp.width * 0.004));
         for (const d of latestDetections) {
-          tmpCtx.strokeStyle = 'rgba(255,80,80,0.9)';
-          tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
+          tmpCtx.strokeStyle = 'rgba(255,0,0,0.9)';
+          tmpCtx.fillStyle = 'rgba(255,0,0,0.7)';
           const [x, y, w, h] = d.bbox;
           tmpCtx.strokeRect(x, y, w, h);
-          const label = `${d.class} ${(d.score * 100).toFixed(0)}%`;
-          const labelW = tmpCtx.measureText(label).width + 10;
-          tmpCtx.fillRect(x, Math.max(y - 22, 0), labelW, 20);
+          const label = `${d.class} ${Math.round(d.score * 100)}%`;
+          const labelW = tmpCtx.measureText(label).width + 8;
+          tmpCtx.fillRect(x, y - 22, labelW, 22);
           tmpCtx.fillStyle = '#fff';
-          tmpCtx.fillText(label, x + 5, Math.max(y - 8, 12));
-          tmpCtx.fillStyle = 'rgba(255,80,80,0.8)';
+          tmpCtx.fillText(label, x + 4, y - 6);
         }
       }
 
-      // Draw to visible preview
-      drawPreviewFrame(tmp);
+      // finally update visible preview by setting the img src to canvas data URL
+      try {
+        preview.src = tmp.toDataURL('image/png');
+      } catch (e) {
+        // fallback: use blob URL if dataURL construction fails on very large canvases
+        tmp.toBlob(blob => { preview.src = URL.createObjectURL(blob); }, 'image/png');
+      }
+    }
 
-      if (qrDecoderBusy) return;
-      qrDecoderBusy = true;
+    // Draw to visible preview
+    drawPreviewFrame(tmp);
 
-      setTimeout(async () => {
-        try {
-          // Read scan area image data
-          const imageData = ctxDisp.getImageData(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
+    if (qrDecoderBusy) return;
+    qrDecoderBusy = true;
 
-          // Handle navigation QR scanning differently
-          if (navigationState.waitingForQR) {
-            const detection = detect_colored_qr_in_frame_js(imageData, null);
+    setTimeout(async () => {
+      try {
+        // Read scan area image data
+        const imageData = ctxDisp.getImageData(scanBox.x, scanBox.y, scanBox.size, scanBox.size);
+
+        // Handle navigation QR scanning differently
+        if (navigationState.waitingForQR) {
+          const detection = detect_colored_qr_in_frame_js(imageData, null);
+          if (detection.found && detection.decoded) {
+            const scannedLocation = detection.decoded.trim();
+            handleNavigationQRScan(scannedLocation);
+          }
+        } else {
+          // Normal initial 3-color QR scanning
+          const targetFilter = (colorFilterEl.value === "Any") ? null : colorFilterEl.value.toLowerCase();
+          const colorOrder = targetFilter ? [targetFilter] : ['blue', 'red', 'green'];
+
+          for (const color of colorOrder) {
+            if (foundResults.has(color)) continue;
+
+            const detection = detect_colored_qr_in_frame_js(imageData, color);
             if (detection.found && detection.decoded) {
-              const scannedLocation = detection.decoded.trim();
-              handleNavigationQRScan(scannedLocation);
-            }
-          } else {
-            // Normal initial 3-color QR scanning
-            const targetFilter = (colorFilterEl.value === "Any") ? null : colorFilterEl.value.toLowerCase();
-            const colorOrder = targetFilter ? [targetFilter] : ['blue', 'red', 'green'];
+              const decodedClean = detection.decoded.trim();
+              foundResults.set(color, {
+                decoded: decodedClean,
+                method: detection.method || 'unknown',
+                boxArea: detection.boxArea || null
+              });
 
-            for (const color of colorOrder) {
-              if (foundResults.has(color)) continue;
+              announce(`${color} QR found: ${decodedClean}`, true);
+              updateProgressDisplay();
 
-              const detection = detect_colored_qr_in_frame_js(imageData, color);
-              if (detection.found && detection.decoded) {
-                const decodedClean = detection.decoded.trim();
-                foundResults.set(color, {
-                  decoded: decodedClean,
-                  method: detection.method || 'unknown',
-                  boxArea: detection.boxArea || null
-                });
-
-                announce(`${color} QR found: ${decodedClean}`, true);
-                updateProgressDisplay();
-
-                if (detection.boxArea) {
-                  const scanArea = scanBox.size * scanBox.size;
-                  const ratio = detection.boxArea / scanArea;
-                  vibrateProximityFromRatio(ratio);
-                }
-
-                handleInitialQRDecoded(decodedClean, color);
-                break;
+              if (detection.boxArea) {
+                const scanArea = scanBox.size * scanBox.size;
+                const ratio = detection.boxArea / scanArea;
+                vibrateProximityFromRatio(ratio);
               }
-            }
 
-            // Check if ALL 3 colors are found before triggering
-            const requiredColors = ['red', 'green', 'blue'];
-            const foundColors = Array.from(foundResults.keys());
-            const allColorsFound = requiredColors.every(color => foundColors.includes(color));
-
-            if (!actionsTriggered && allColorsFound) {
-              console.log('TRIGGERING ALL ACTIONS - All 3 QR codes detected!');
-              triggerAllActionsOnce();
+              handleInitialQRDecoded(decodedClean, color);
+              break;
             }
           }
 
-          // Object detection logic
-          const now = performance.now();
-          if (enableDetectCheckbox.checked && cocoReady && (now - lastDetectTime > DETECTION_INTERVAL_MS)) {
-            lastDetectTime = now;
-            try {
-              const off = document.createElement('canvas');
-              const D_W = 480;
-              const scale = D_W / canvasDisp.width;
-              off.width = D_W;
-              off.height = Math.floor(canvasDisp.height * scale);
-              const offCtx = off.getContext('2d');
-              offCtx.drawImage(canvasDisp, 0, 0, off.width, off.height);
-              const predictions = await cocoModel.detect(off);
-              const preds = predictions.filter(p => p.score >= SCORE_THRESHOLD);
-              const scaleBack = canvasDisp.width / off.width;
-              latestDetections = preds.map(p => {
-                const [x, y, w, h] = p.bbox;
-                return { class: p.class, score: p.score, bbox: [x * scaleBack, y * scaleBack, w * scaleBack, h * scaleBack] };
-              });
+          // Check if ALL 3 colors are found before triggering
+          const requiredColors = ['red', 'green', 'blue'];
+          const foundColors = Array.from(foundResults.keys());
+          const allColorsFound = requiredColors.every(color => foundColors.includes(color));
 
-              if (latestDetections.length) {
-                updateAlertsList(latestDetections.slice(0, 4));
-              } else {
-                updateAlertsList([]);
-              }
+          if (!actionsTriggered && allColorsFound) {
+            console.log('TRIGGERING ALL ACTIONS - All 3 QR codes detected!');
+            triggerAllActionsOnce();
+          }
+        }
 
-              // Obstacle detection logic
-              let candidate = null;
-              const fh = canvasDisp.height;
-              const fw = canvasDisp.width;
-              for (const det of latestDetections) {
-                if (!HARMFUL_CLASSES.has(det.class)) continue;
-                const [x, y, w, h] = det.bbox;
-                const cx = x + w / 2;
-                const centerDelta = Math.abs(cx - fw / 2) / fw;
-                const score = (h / fh) * (1.0 - Math.min(centerDelta / 0.5, 1.0));
-                if (!candidate || score > candidate.score) candidate = { det, score };
-              }
-              if (candidate) {
-                const det = candidate.det;
-                const [x, y, w, h] = det.bbox;
-                const cx = x + w / 2;
-                const centerDelta = Math.abs(cx - fw / 2) / fw;
-                const isAhead = (centerDelta <= CENTER_TOLERANCE) && (h / fh >= 0.06);
-                if (isAhead) {
-                  const cls = det.class;
-                  const nowTs = Date.now();
-                  if (!lastAlertAt[cls] || (nowTs - lastAlertAt[cls] > alertCooldown)) {
-                    const ratio = (h / fh);
-                    let distMeters = (DISTANCE_ESTIMATE_SCALE / Math.max(ratio, 0.02));
-                    distMeters = Math.min(Math.max(distMeters, 0.2), 50.0);
-                    if (distMeters <= 5.0) {
-                      announce(`Obstacle ahead: ${cls}, approximately ${distMeters.toFixed(1)} meters.`, false);
-                      lastAlertAt[cls] = nowTs;
-                      log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`);
-                    }
+        // Object detection logic
+        const now = performance.now();
+        if (enableDetectCheckbox.checked && cocoReady && (now - lastDetectTime > DETECTION_INTERVAL_MS)) {
+          lastDetectTime = now;
+          try {
+            const off = document.createElement('canvas');
+            const D_W = 480;
+            const scale = D_W / canvasDisp.width;
+            off.width = D_W;
+            off.height = Math.floor(canvasDisp.height * scale);
+            const offCtx = off.getContext('2d');
+            offCtx.drawImage(canvasDisp, 0, 0, off.width, off.height);
+            const predictions = await cocoModel.detect(off);
+            const preds = predictions.filter(p => p.score >= SCORE_THRESHOLD);
+            const scaleBack = canvasDisp.width / off.width;
+            latestDetections = preds.map(p => {
+              const [x, y, w, h] = p.bbox;
+              return { class: p.class, score: p.score, bbox: [x * scaleBack, y * scaleBack, w * scaleBack, h * scaleBack] };
+            });
+
+            if (latestDetections.length) {
+              updateAlertsList(latestDetections.slice(0, 4));
+            } else {
+              updateAlertsList([]);
+            }
+
+            // Obstacle detection logic
+            let candidate = null;
+            const fh = canvasDisp.height;
+            const fw = canvasDisp.width;
+            for (const det of latestDetections) {
+              if (!HARMFUL_CLASSES.has(det.class)) continue;
+              const [x, y, w, h] = det.bbox;
+              const cx = x + w / 2;
+              const centerDelta = Math.abs(cx - fw / 2) / fw;
+              const score = (h / fh) * (1.0 - Math.min(centerDelta / 0.5, 1.0));
+              if (!candidate || score > candidate.score) candidate = { det, score };
+            }
+            if (candidate) {
+              const det = candidate.det;
+              const [x, y, w, h] = det.bbox;
+              const cx = x + w / 2;
+              const centerDelta = Math.abs(cx - fw / 2) / fw;
+              const isAhead = (centerDelta <= CENTER_TOLERANCE) && (h / fh >= 0.06);
+              if (isAhead) {
+                const cls = det.class;
+                const nowTs = Date.now();
+                if (!lastAlertAt[cls] || (nowTs - lastAlertAt[cls] > alertCooldown)) {
+                  const ratio = (h / fh);
+                  let distMeters = (DISTANCE_ESTIMATE_SCALE / Math.max(ratio, 0.02));
+                  distMeters = Math.min(Math.max(distMeters, 0.2), 50.0);
+                  if (distMeters <= 5.0) {
+                    announce(`Obstacle ahead: ${cls}, approximately ${distMeters.toFixed(1)} meters.`, false);
+                    lastAlertAt[cls] = nowTs;
+                    log(`[OBSTACLE] ${cls} @ ${distMeters.toFixed(1)}m`);
                   }
                 }
               }
-            } catch (e) {
-              console.warn("Object detection error", e);
             }
+          } catch (e) {
+            console.warn("Object detection error", e);
           }
-
-        } catch (e) {
-          console.error("Frame processing error:", e);
-        } finally {
-          qrDecoderBusy = false;
         }
-      }, 36);
+
+      } catch (e) {
+        console.error("Frame processing error:", e);
+      } finally {
+        qrDecoderBusy = false;
+      }
+    }, 36);
     }
 
     /* ---------------------------
