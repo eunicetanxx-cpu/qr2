@@ -1971,8 +1971,39 @@ restartBtn.onclick = () => {
 };
 
 voiceDestBtn.onclick = async () => { 
-  userGesturePerformed = true; 
-  await ask_destination_via_voice(); 
+  userGesturePerformed = true;
+  
+  // Check prerequisites
+  if (!actionsTriggered) {
+    announce("Please scan all three QR codes first to set up the system.", false);
+    return;
+  }
+  
+  if (!currentLocation) {
+    announce("No current location detected. Please scan QR codes first.", false);
+    return;
+  }
+  
+  if (!SR_AVAILABLE) {
+    announce("Speech recognition is not available in your browser. Using text input instead.", false);
+    show_destination_modal();
+    return;
+  }
+  
+  // Disable button temporarily to prevent multiple clicks
+  voiceDestBtn.disabled = true;
+  voiceDestBtn.textContent = "Listening...";
+  
+  try {
+    await ask_destination_via_voice();
+  } catch (error) {
+    console.error("Voice destination error:", error);
+    announce("Voice input failed. Please try again.", false);
+  } finally {
+    // Re-enable button
+    voiceDestBtn.disabled = false;
+    voiceDestBtn.textContent = "Voice Destination";
+  }
 };
 
 mapBtn.onclick = () => { 
