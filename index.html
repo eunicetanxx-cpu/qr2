@@ -1679,12 +1679,18 @@ async function waitForNextCommand(expectedNext) {
   
   navigationState.waitingForVoice = true;
   
+  // Stop camera when waiting for voice input
+  if (scannerRunning) {
+    stopCamera();
+    log("📹 Camera stopped for voice input");
+  }
+  
   TTS.stop();
   announce(`Say 'next' when you reach ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
   
   await TTS.waitForFinish();
   
-  // Wait indefinitely for user response
+  // Wait indefinitely for user response with improved command handling
   while (navigationState.active && navigationState.waitingForVoice) {
     const interimBox = document.getElementById('listeningBox');
     interimBox.style.display = 'block';
@@ -1700,34 +1706,52 @@ async function waitForNextCommand(expectedNext) {
     interimBox.textContent = '';
     interimBox.style.display = 'none';
     
-    if (!response) {
+    if (!response || response === '__NO_SPEECH__') {
       // Just quietly restart listening without nagging
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 1000));
       continue;
     }
     
     const command = response.toLowerCase().trim();
     log(`Navigation command heard: "${command}"`);
     
-    if (command.includes('next') || command.includes('ready') || command.includes('continue') || command.includes('arrived')) {
+    // Improved command parsing with priority handling
+    let commandHandled = false;
+    
+    // Priority 1: Cancel/Stop commands (highest priority)
+    if (command.includes('cancel') || command.includes('stop') || command.includes('quit') || command.includes('end')) {
       navigationState.waitingForVoice = false;
-      startQRVerification(expectedNext);
-      return;
-    } else if (command.includes('skip')) {
+      cancelNavigation();
+      commandHandled = true;
+    }
+    // Priority 2: Skip command
+    else if (command.includes('skip') || command.includes('bypass')) {
       navigationState.waitingForVoice = false;
       handleSkipWaypoint();
-      return;
-    } else if (command.includes('cancel') || command.includes('stop') || command.includes('quit')) {
-      cancelNavigation();
-      return;
-    } else if (command.includes('repeat') || command.includes('again')) {
+      commandHandled = true;
+    }
+    // Priority 3: Next/Continue commands
+    else if (command.includes('next') || command.includes('ready') || command.includes('continue') || command.includes('arrived') || command.includes('reach') || command.includes('go')) {
+      navigationState.waitingForVoice = false;
+      startQRVerification(expectedNext);
+      commandHandled = true;
+    }
+    // Priority 4: Repeat instruction
+    else if (command.includes('repeat') || command.includes('again') || command.includes('instruction')) {
+      // Don't change waitingForVoice state, just repeat and continue listening
       await giveCurrentInstruction();
-      return;
+      commandHandled = true;
+    }
+    
+    if (commandHandled) {
+      if (!command.includes('repeat') && !command.includes('again') && !command.includes('instruction')) {
+        return; // Exit the loop for commands that complete the waiting
+      }
     } else {
-      // Brief feedback and continue listening
+      // Command not recognized - provide brief feedback without TTS interruption
       const interimBox = document.getElementById('listeningBox');
       interimBox.style.display = 'block';
-      interimBox.textContent = "Say 'next', 'skip', or 'cancel'...";
+      interimBox.textContent = "Command not recognized. Say 'next', 'skip', or 'cancel'...";
       await new Promise(r => setTimeout(r, 1500));
       continue;
     }
@@ -1954,15 +1978,6 @@ closeMap.onclick = () => {
   mapModal.style.display = 'none'; 
   announce("Map closed.", false); 
 };
-
-// Keyboard shortcuts
-window.addEventListener('keydown', (e) => {
-  if (e.key === 's' || e.key === 'S') { startBtn.click(); }
-  if (e.key === 'v' || e.key === 'V') { voiceDestBtn.click(); }
-  if (e.key === 'm' || e.key === 'M') { mapBtn.click(); }
-  if (e.key === 'r' || e.key === 'R') { restartBtn.click(); }
-  if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
-});
 
 /* ---------------------------
    OpenCV Initialization
