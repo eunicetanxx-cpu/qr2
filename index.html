@@ -1156,656 +1156,614 @@
     }
 
     async function ask_destination_via_voice() {
-      if (!currentLocation) { announce("No current location. Scan first.", false); return; }
-      if (!SR_AVAILABLE) { announce("Speech recognition not available. Please use text input.", false); show_destination_modal(); return; }
+      // stop camera while listening
+      if (scannerRunning) {
+        stopCamera();
+        log("Camera stopped for voice input.");
+      }
+
+      if (!currentLocation) {
+        announce("No current location. Scan first.", false);
+        return;
+      }
+      if (!SR_AVAILABLE) {
+        announce("Speech recognition not available. Please use text input.", false);
+        show_destination_modal();
+        return;
+      }
+
       let tries = 0;
       while (tries < 4) {
         tries++;
         TTS.stop();
         announce("Please say your destination after the beep.", true);
         await TTS.waitForFinish();
+        await playBeep();
+
+        // only listen — no TTS output during speech
         const interimBox = document.getElementById('listeningBox');
         interimBox.style.display = 'block';
         interimBox.textContent = "Listening… (speak now)";
-        const transcript = await srWithBeep({ lang: 'en-US', interim: true, timeout: 12000, onInterim: (t) => { interimBox.textContent = "Listening… " + t; } });
-        interimBox.textContent = ''; interimBox.style.display = 'none';
-        if (!transcript) {
-          log("No transcript received");
-          if (!userGesturePerformed && tries === 1) {
-            announce("I could not access the microphone automatically. Please press the Voice Destination button and allow microphone access, then speak after the beep.", false);
-            voiceDestBtn.classList.add('secondary');
+        const transcript = await startSpeechRecognition({
+          lang: 'en-US', interim: true, timeout: 12000,
+          onInterim: (t) => { interimBox.textContent = "Listening… " + t; }
+        });
+        interimBox.style.display = 'none';
+      }
+
+
+      function interpretConfirmation(text) {
+        if (!text) return 'unknown';
+        const s = text.toLowerCase().trim();
+        const yesPatterns = ['yes', 'yeah', 'yep', 'yup', 'sure', 'correct', 'right', 'ok', 'okay', 'confirm', 'affirmative'];
+        const noPatterns = ['no', 'nope', 'nah', 'wrong', 'incorrect', 'cancel', 'stop'];
+        const hasYes = yesPatterns.some(pattern => s.includes(pattern));
+        const hasNo = noPatterns.some(pattern => s.includes(pattern));
+        if (hasYes && !hasNo) return 'yes';
+        if (hasNo && !hasYes) return 'no';
+        if (hasYes && hasNo) return 'ambiguous';
+        return 'unknown';
+      }
+
+      const node_coords = {
+        "Female Toilet (NGT1)": [2009, 1357],
+        "Male Toilet (NGT2)": [1955, 1357],
+        "N001 (backdoor)": [2100, 1135],
+        "N001": [1907, 1121],
+        "N002": [1651, 1097],
+        "N003": [1387, 1074],
+        "N004": [892, 1097],
+        "N005": [638, 1115],
+        "N006": [383, 1139],
+        "N007": [127, 1158],
+        "N008": [4, 1330],
+        "Female Toilet (NGT5)": [357, 1350],
+        "Male Toilet (NGT4)": [403, 1351],
+        "N009": [492, 1330],
+        "N010": [822, 1335],
+        "N011": [1251, 1340],
+        "N012": [1597, 1340],
+      };
+
+      const graph_raw = {
+        "Female Toilet (NGT1)": { "Male Toilet (NGT2)": 1.89 },
+        "N001": { "Female Toilet (NGT1)": 9.00, "N001 (backdoor)": 6.77, "N002": 9.00 },
+        "N002": { "N003": 9.28 },
+        "N003": { "N004": 17.35 },
+        "N004": { "N005": 8.91 },
+        "N005": { "N006": 8.97 },
+        "N006": { "Male Toilet (NGT4)": 7.45, "Female Toilet (NGT5)": 7.44, "N007": 8.99 },
+        "N007": { "N008": 7.40 },
+        "N008": { "Female Toilet (NGT5)": 12.38 },
+        "Female Toilet (NGT5)": { "Male Toilet (NGT4)": 1.61 },
+        "Male Toilet (NGT4)": { "N009": 3.20 },
+        "N009": { "N010": 11.55 },
+        "N010": { "N011": 15.02 },
+        "N011": { "N012": 12.11 },
+        "N012": { "Male Toilet (NGT2)": 12.55 }
+      };
+
+      function add_bidirectional_edges(graph_in) {
+        const new_graph = {};
+        for (const k in graph_in) new_graph[k] = {};
+        for (const from in graph_in) {
+          for (const to in graph_in[from]) {
+            const w = graph_in[from][to];
+            new_graph[from][to] = w;
+            if (!new_graph[to]) new_graph[to] = {};
+            new_graph[to][from] = w;
+          }
+        }
+        return new_graph;
+      }
+
+      const graph = add_bidirectional_edges(graph_raw);
+
+      function drawMap() {
+        const ctx = mapCanvas.getContext('2d');
+        ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+        const cw = mapCanvas.width, ch = mapCanvas.height, margin = 40;
+        const xs = Object.values(node_coords).map(p => p[0]);
+        const ys = Object.values(node_coords).map(p => p[1]);
+        const minx = Math.min(...xs), maxx = Math.max(...xs);
+        const miny = Math.min(...ys), maxy = Math.max(...ys);
+        const project = (p) => {
+          const sx = (p[0] - minx) / (maxx - minx || 1);
+          const sy = (p[1] - miny) / (maxy - miny || 1);
+          return [
+            margin + Math.floor(sx * (cw - margin * 2)),
+            margin + Math.floor(sy * (ch - margin * 2))
+          ];
+        };
+        ctx.strokeStyle = "#bbb";
+        ctx.lineWidth = 1;
+        for (const a in graph) {
+          for (const b in graph[a]) {
+            if (node_coords[a] && node_coords[b]) {
+              const pa = project(node_coords[a]);
+              const pb = project(node_coords[b]);
+              ctx.beginPath();
+              ctx.moveTo(pa[0], pa[1]);
+              ctx.lineTo(pb[0], pb[1]);
+              ctx.stroke();
+            }
+          }
+        }
+        if (navigationState.active && navigationState.fullPath.length > 1) {
+          ctx.strokeStyle = "#ff6b35";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          for (let i = 0; i < navigationState.fullPath.length - 1; i++) {
+            const current = navigationState.fullPath[i];
+            const next = navigationState.fullPath[i + 1];
+            if (node_coords[current] && node_coords[next]) {
+              const pa = project(node_coords[current]);
+              const pb = project(node_coords[next]);
+              if (i === 0) ctx.moveTo(pa[0], pa[1]);
+              ctx.lineTo(pb[0], pb[1]);
+            }
+          }
+          ctx.stroke();
+        }
+        const labels = [];
+        ctx.font = "12px Arial";
+        for (const name in node_coords) {
+          const p = project(node_coords[name]);
+          const text = name;
+          const padding = 6;
+          const textW = Math.min(300, ctx.measureText(text).width);
+          let lx = p[0] + 8;
+          let ly = p[1] - 6;
+          const labelH = 18;
+          if (lx + textW + padding * 2 > cw - margin) lx = p[0] - textW - padding * 2 - 8;
+          if (lx < margin) lx = margin;
+          if (ly < margin) ly = margin;
+          labels.push({ name, p, lx, ly, textW, labelH, padding });
+        }
+        for (let i = 0; i < labels.length; i++) {
+          const a = labels[i];
+          for (let j = 0; j < i; j++) {
+            const b = labels[j];
+            const aLeft = a.lx, aRight = a.lx + a.textW + a.padding * 2;
+            const aTop = a.ly, aBottom = a.ly + a.labelH + a.padding;
+            const bLeft = b.lx, bRight = b.lx + b.textW + b.padding * 2;
+            const bTop = b.ly, bBottom = b.ly + b.labelH + b.padding;
+            const overlapX = !(aRight < bLeft || aLeft > bRight);
+            const overlapY = !(aBottom < bTop || aTop > bBottom);
+            if (overlapX && overlapY) a.ly = bBottom + 4;
+          }
+        }
+
+        for (const lbl of labels) {
+          const p = lbl.p;
+          if (currentLocation && lbl.name === currentLocation) {
+            ctx.fillStyle = "#ff4444";
+            ctx.beginPath();
+            ctx.arc(p[0], p[1], 10, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (destinationNode && lbl.name === destinationNode) {
+            ctx.fillStyle = "#22bb33";
+            ctx.beginPath();
+            ctx.arc(p[0], p[1], 9, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (navigationState.active && navigationState.fullPath.includes(lbl.name)) {
+            ctx.fillStyle = "#ff9800";
+            ctx.beginPath();
+            ctx.arc(p[0], p[1], 7, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = "#333";
+            ctx.beginPath();
+            ctx.arc(p[0], p[1], 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          const bx = lbl.lx, by = lbl.ly - 4;
+          const bw = lbl.textW + lbl.padding * 2;
+          const bh = lbl.labelH + lbl.padding / 1.5;
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          roundRect(ctx, bx, by, bw, bh, 6, true, false);
+          ctx.fillStyle = '#000';
+          ctx.fillText(lbl.name, bx + lbl.padding, by + bh / 1.35);
+          ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(p[0], p[1]);
+          ctx.lineTo(bx + 4, by + bh / 2);
+          ctx.stroke();
+        }
+      }
+
+      function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+        if (typeof r === 'undefined') r = 5;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
+      }
+
+      function show_destination_modal() {
+        if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
+        const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
+        const candidateList = candidates.map((p, i) => `${i + 1}. ${p}`).join('\n');
+        announce("Opening text selection. Check the screen for options.", false);
+        const dest = prompt(`Current: ${currentLocation}\nAvailable:\n${candidateList}\n\nType name or number:`);
+        if (!dest) { announce("No destination selected.", false); return; }
+        let destination = dest.trim();
+        const destNumber = parseInt(destination);
+        if (!isNaN(destNumber) && destNumber >= 1 && destNumber <= candidates.length) destination = candidates[destNumber - 1];
+        else {
+          const best = findBestLocationMatch(destination, candidates);
+          if (best) destination = best;
+          else { announce("Destination not found. Please try voice input.", false); setTimeout(() => ask_destination_via_voice(), 600); return; }
+        }
+        announce(`You selected ${destination}. Confirming.`, false);
+        if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
+        else { announce("Selection cancelled. Try again.", false); setTimeout(() => show_destination_modal(), 500); }
+      }
+
+      async function waitForNextCommand(expectedNext) {
+        if (!navigationState.active) return;
+        navigationState.waitingForVoice = true;
+        TTS.stop();
+        announce(`Say 'next' when you reach ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
+        await TTS.waitForFinish();
+        while (navigationState.active && navigationState.waitingForVoice) {
+          const interimBox = document.getElementById('listeningBox');
+          interimBox.style.display = 'block';
+          interimBox.textContent = "Listening for 'next', 'skip', or 'cancel'...";
+          const response = await srWithBeep({ lang: 'en-US', interim: true, timeout: 30000, onInterim: (t) => { interimBox.textContent = "Listening... " + t; } });
+          interimBox.textContent = '';
+          interimBox.style.display = 'none';
+          if (!response) {
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
+          const command = response.toLowerCase().trim();
+          log(`Navigation command heard: "${command}"`);
+          if (command.includes('next') || command.includes('ready') || command.includes('continue') || command.includes('arrived')) {
+            navigationState.waitingForVoice = false;
+            startQRVerification(expectedNext);
+            return;
+          } else if (command.includes('skip')) {
+            navigationState.waitingForVoice = false;
+            handleSkipWaypoint();
+            return;
+          } else if (command.includes('cancel') || command.includes('stop') || command.includes('quit')) {
+            cancelNavigation();
+            return;
+          } else if (command.includes('repeat') || command.includes('again')) {
+            await giveCurrentInstruction();
+            return;
+          } else {
+            const interimBox2 = document.getElementById('listeningBox');
+            interimBox2.style.display = 'block';
+            interimBox2.textContent = "Say 'next', 'skip', or 'cancel'.";
             await new Promise(r => setTimeout(r, 1500));
             continue;
           }
-          announce("I didn't catch that. Let's try again.", false);
-          await new Promise(r => setTimeout(r, 1000));
-          continue;
         }
-        log("Destination recognized: " + transcript);
-        const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
-        const bestMatch = findBestLocationMatch(transcript, candidates);
-        if (!bestMatch) {
-          announce("I couldn't find that location. Please say your destination again.", false);
-          await new Promise(r => setTimeout(r, 1000));
-          continue;
-        }
-        let confirmAttempts = 0;
-        while (confirmAttempts < 3) {
-          confirmAttempts++;
+      }
+
+      async function handleSkipWaypoint() {
+        if (!navigationState.active) return;
+        navigationState.skipCount++;
+        announce(`Skipping this waypoint. Proceeding to next step.`, false);
+        log(`⏭️ Skipped waypoint: ${navigationState.fullPath[navigationState.currentStepIndex + 1]}`);
+        if (navigationState.skipCount >= 2) {
           TTS.stop();
-          announce(`Did you mean ${bestMatch}? Say yes or no.`, false);
+          announce(`You've skipped ${navigationState.skipCount} waypoints. Would you like me to direct you straight to the final destination? Say yes or no.`, false);
           await TTS.waitForFinish();
-          await new Promise(r => setTimeout(r, 500));
-          const interimBox2 = document.getElementById('listeningBox');
-          interimBox2.style.display = 'block';
-          interimBox2.textContent = "Listening for yes or no...";
-          const conf = await srWithBeep({ lang: 'en-US', interim: false, timeout: 10000, onInterim: (t) => { interimBox2.textContent = "Hearing: " + t; } });
-          interimBox2.style.display = 'none';
-          if (!conf) {
-            announce("I didn't hear your response. Please say yes or no clearly.", false);
-            await new Promise(r => setTimeout(r, 1000));
-            continue;
-          }
-          log("Confirmation recognition: " + conf);
-          const verdict = interpretConfirmation(conf);
-          if (verdict === 'yes') {
-            announce(`Confirmed. Starting navigation to ${bestMatch}.`, true);
-            start_navigation(bestMatch);
-            return;
-          } else if (verdict === 'no') {
-            announce("Okay, let's try again. Please say your destination.", true);
-            await new Promise(r => setTimeout(r, 1000));
-            break;
-          } else if (verdict === 'ambiguous') {
-            announce("I heard mixed signals. Please say just 'yes' or 'no'.", false);
-            await new Promise(r => setTimeout(r, 1000));
-            continue;
-          } else {
-            announce("I didn't understand. Please say 'yes' to confirm or 'no' to try again.", false);
-            await new Promise(r => setTimeout(r, 1000));
-            continue;
-          }
-        }
-        if (confirmAttempts >= 3) {
-          announce("Voice confirmation failed. Let's try selecting your destination again.", false);
           await new Promise(r => setTimeout(r, 1000));
-        }
-      }
-      announce("Voice input failed repeatedly. Please type destination instead.", false);
-      show_destination_modal();
-    }
-
-    function interpretConfirmation(text) {
-      if (!text) return 'unknown';
-      const s = text.toLowerCase().trim();
-      const yesPatterns = ['yes', 'yeah', 'yep', 'yup', 'sure', 'correct', 'right', 'ok', 'okay', 'confirm', 'affirmative'];
-      const noPatterns = ['no', 'nope', 'nah', 'wrong', 'incorrect', 'cancel', 'stop'];
-      const hasYes = yesPatterns.some(pattern => s.includes(pattern));
-      const hasNo = noPatterns.some(pattern => s.includes(pattern));
-      if (hasYes && !hasNo) return 'yes';
-      if (hasNo && !hasYes) return 'no';
-      if (hasYes && hasNo) return 'ambiguous';
-      return 'unknown';
-    }
-
-    const node_coords = {
-      "Female Toilet (NGT1)": [2009, 1357],
-      "Male Toilet (NGT2)": [1955, 1357],
-      "N001 (backdoor)": [2100, 1135],
-      "N001": [1907, 1121],
-      "N002": [1651, 1097],
-      "N003": [1387, 1074],
-      "N004": [892, 1097],
-      "N005": [638, 1115],
-      "N006": [383, 1139],
-      "N007": [127, 1158],
-      "N008": [4, 1330],
-      "Female Toilet (NGT5)": [357, 1350],
-      "Male Toilet (NGT4)": [403, 1351],
-      "N009": [492, 1330],
-      "N010": [822, 1335],
-      "N011": [1251, 1340],
-      "N012": [1597, 1340],
-    };
-
-    const graph_raw = {
-      "Female Toilet (NGT1)": { "Male Toilet (NGT2)": 1.89 },
-      "N001": { "Female Toilet (NGT1)": 9.00, "N001 (backdoor)": 6.77, "N002": 9.00 },
-      "N002": { "N003": 9.28 },
-      "N003": { "N004": 17.35 },
-      "N004": { "N005": 8.91 },
-      "N005": { "N006": 8.97 },
-      "N006": { "Male Toilet (NGT4)": 7.45, "Female Toilet (NGT5)": 7.44, "N007": 8.99 },
-      "N007": { "N008": 7.40 },
-      "N008": { "Female Toilet (NGT5)": 12.38 },
-      "Female Toilet (NGT5)": { "Male Toilet (NGT4)": 1.61 },
-      "Male Toilet (NGT4)": { "N009": 3.20 },
-      "N009": { "N010": 11.55 },
-      "N010": { "N011": 15.02 },
-      "N011": { "N012": 12.11 },
-      "N012": { "Male Toilet (NGT2)": 12.55 }
-    };
-
-    function add_bidirectional_edges(graph_in) {
-      const new_graph = {};
-      for (const k in graph_in) new_graph[k] = {};
-      for (const from in graph_in) {
-        for (const to in graph_in[from]) {
-          const w = graph_in[from][to];
-          new_graph[from][to] = w;
-          if (!new_graph[to]) new_graph[to] = {};
-          new_graph[to][from] = w;
-        }
-      }
-      return new_graph;
-    }
-
-    const graph = add_bidirectional_edges(graph_raw);
-
-    function drawMap() {
-      const ctx = mapCanvas.getContext('2d');
-      ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
-      const cw = mapCanvas.width, ch = mapCanvas.height, margin = 40;
-      const xs = Object.values(node_coords).map(p => p[0]);
-      const ys = Object.values(node_coords).map(p => p[1]);
-      const minx = Math.min(...xs), maxx = Math.max(...xs);
-      const miny = Math.min(...ys), maxy = Math.max(...ys);
-      const project = (p) => {
-        const sx = (p[0] - minx) / (maxx - minx || 1);
-        const sy = (p[1] - miny) / (maxy - miny || 1);
-        return [
-          margin + Math.floor(sx * (cw - margin * 2)),
-          margin + Math.floor(sy * (ch - margin * 2))
-        ];
-      };
-      ctx.strokeStyle = "#bbb";
-      ctx.lineWidth = 1;
-      for (const a in graph) {
-        for (const b in graph[a]) {
-          if (node_coords[a] && node_coords[b]) {
-            const pa = project(node_coords[a]);
-            const pb = project(node_coords[b]);
-            ctx.beginPath();
-            ctx.moveTo(pa[0], pa[1]);
-            ctx.lineTo(pb[0], pb[1]);
-            ctx.stroke();
+          const interimBox = document.getElementById('listeningBox');
+          interimBox.style.display = 'block';
+          interimBox.textContent = "Listening for yes or no...";
+          const response = await srWithBeep({ lang: 'en-US', interim: false, timeout: 10000 });
+          interimBox.style.display = 'none';
+          if (response && interpretConfirmation(response) === 'yes') {
+            navigationState.currentStepIndex = navigationState.fullPath.length - 2;
+            announce(`Redirecting you directly to ${navigationState.destination}.`, true);
+            await TTS.waitForFinish();
+            setTimeout(() => { giveCurrentInstruction(); }, 1000);
+            return;
           }
         }
-      }
-      if (navigationState.active && navigationState.fullPath.length > 1) {
-        ctx.strokeStyle = "#ff6b35";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        for (let i = 0; i < navigationState.fullPath.length - 1; i++) {
-          const current = navigationState.fullPath[i];
-          const next = navigationState.fullPath[i + 1];
-          if (node_coords[current] && node_coords[next]) {
-            const pa = project(node_coords[current]);
-            const pb = project(node_coords[next]);
-            if (i === 0) ctx.moveTo(pa[0], pa[1]);
-            ctx.lineTo(pb[0], pb[1]);
-          }
-        }
-        ctx.stroke();
-      }
-      const labels = [];
-      ctx.font = "12px Arial";
-      for (const name in node_coords) {
-        const p = project(node_coords[name]);
-        const text = name;
-        const padding = 6;
-        const textW = Math.min(300, ctx.measureText(text).width);
-        let lx = p[0] + 8;
-        let ly = p[1] - 6;
-        const labelH = 18;
-        if (lx + textW + padding * 2 > cw - margin) lx = p[0] - textW - padding * 2 - 8;
-        if (lx < margin) lx = margin;
-        if (ly < margin) ly = margin;
-        labels.push({ name, p, lx, ly, textW, labelH, padding });
-      }
-      for (let i = 0; i < labels.length; i++) {
-        const a = labels[i];
-        for (let j = 0; j < i; j++) {
-          const b = labels[j];
-          const aLeft = a.lx, aRight = a.lx + a.textW + a.padding * 2;
-          const aTop = a.ly, aBottom = a.ly + a.labelH + a.padding;
-          const bLeft = b.lx, bRight = b.lx + b.textW + b.padding * 2;
-          const bTop = b.ly, bBottom = b.ly + b.labelH + b.padding;
-          const overlapX = !(aRight < bLeft || aLeft > bRight);
-          const overlapY = !(aBottom < bTop || aTop > bBottom);
-          if (overlapX && overlapY) a.ly = bBottom + 4;
-        }
-      }
-
-      for (const lbl of labels) {
-        const p = lbl.p;
-        if (currentLocation && lbl.name === currentLocation) {
-          ctx.fillStyle = "#ff4444";
-          ctx.beginPath();
-          ctx.arc(p[0], p[1], 10, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (destinationNode && lbl.name === destinationNode) {
-          ctx.fillStyle = "#22bb33";
-          ctx.beginPath();
-          ctx.arc(p[0], p[1], 9, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (navigationState.active && navigationState.fullPath.includes(lbl.name)) {
-          ctx.fillStyle = "#ff9800";
-          ctx.beginPath();
-          ctx.arc(p[0], p[1], 7, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.fillStyle = "#333";
-          ctx.beginPath();
-          ctx.arc(p[0], p[1], 5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        const bx = lbl.lx, by = lbl.ly - 4;
-        const bw = lbl.textW + lbl.padding * 2;
-        const bh = lbl.labelH + lbl.padding / 1.5;
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        roundRect(ctx, bx, by, bw, bh, 6, true, false);
-        ctx.fillStyle = '#000';
-        ctx.fillText(lbl.name, bx + lbl.padding, by + bh / 1.35);
-        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(p[0], p[1]);
-        ctx.lineTo(bx + 4, by + bh / 2);
-        ctx.stroke();
-      }
-    }
-
-    function roundRect(ctx, x, y, w, h, r, fill, stroke) {
-      if (typeof r === 'undefined') r = 5;
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + h, r);
-      ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r);
-      ctx.arcTo(x, y, x + w, y, r);
-      ctx.closePath();
-      if (fill) ctx.fill();
-      if (stroke) ctx.stroke();
-    }
-
-    function show_destination_modal() {
-      if (!currentLocation) { alert("No current location detected. Please scan QR codes first."); return; }
-      const candidates = Object.keys(node_coords).filter(n => n !== currentLocation);
-      const candidateList = candidates.map((p, i) => `${i + 1}. ${p}`).join('\n');
-      announce("Opening text selection. Check the screen for options.", false);
-      const dest = prompt(`Current: ${currentLocation}\nAvailable:\n${candidateList}\n\nType name or number:`);
-      if (!dest) { announce("No destination selected.", false); return; }
-      let destination = dest.trim();
-      const destNumber = parseInt(destination);
-      if (!isNaN(destNumber) && destNumber >= 1 && destNumber <= candidates.length) destination = candidates[destNumber - 1];
-      else {
-        const best = findBestLocationMatch(destination, candidates);
-        if (best) destination = best;
-        else { announce("Destination not found. Please try voice input.", false); setTimeout(() => ask_destination_via_voice(), 600); return; }
-      }
-      announce(`You selected ${destination}. Confirming.`, false);
-      if (confirm(`Navigate to: ${destination}?`)) start_navigation(destination);
-      else { announce("Selection cancelled. Try again.", false); setTimeout(() => show_destination_modal(), 500); }
-    }
-
-    async function waitForNextCommand(expectedNext) {
-      if (!navigationState.active) return;
-      navigationState.waitingForVoice = true;
-      TTS.stop();
-      announce(`Say 'next' when you reach ${expectedNext}, or 'skip' to skip this waypoint, or 'cancel' to stop navigation.`, false);
-      await TTS.waitForFinish();
-      while (navigationState.active && navigationState.waitingForVoice) {
-        const interimBox = document.getElementById('listeningBox');
-        interimBox.style.display = 'block';
-        interimBox.textContent = "Listening for 'next', 'skip', or 'cancel'...";
-        const response = await srWithBeep({ lang: 'en-US', interim: true, timeout: 30000, onInterim: (t) => { interimBox.textContent = "Listening... " + t; } });
-        interimBox.textContent = '';
-        interimBox.style.display = 'none';
-        if (!response) {
-          await new Promise(r => setTimeout(r, 2000));
-          continue;
-        }
-        const command = response.toLowerCase().trim();
-        log(`Navigation command heard: "${command}"`);
-        if (command.includes('next') || command.includes('ready') || command.includes('continue') || command.includes('arrived')) {
-          navigationState.waitingForVoice = false;
-          startQRVerification(expectedNext);
-          return;
-        } else if (command.includes('skip')) {
-          navigationState.waitingForVoice = false;
-          handleSkipWaypoint();
-          return;
-        } else if (command.includes('cancel') || command.includes('stop') || command.includes('quit')) {
-          cancelNavigation();
-          return;
-        } else if (command.includes('repeat') || command.includes('again')) {
-          await giveCurrentInstruction();
-          return;
-        } else {
-          const interimBox2 = document.getElementById('listeningBox');
-          interimBox2.style.display = 'block';
-          interimBox2.textContent = "Say 'next', 'skip', or 'cancel'.";
-          await new Promise(r => setTimeout(r, 1500));
-          continue;
-        }
-      }
-    }
-
-    async function handleSkipWaypoint() {
-      if (!navigationState.active) return;
-      navigationState.skipCount++;
-      announce(`Skipping this waypoint. Proceeding to next step.`, false);
-      log(`⏭️ Skipped waypoint: ${navigationState.fullPath[navigationState.currentStepIndex + 1]}`);
-      if (navigationState.skipCount >= 2) {
-        TTS.stop();
-        announce(`You've skipped ${navigationState.skipCount} waypoints. Would you like me to direct you straight to the final destination? Say yes or no.`, false);
-        await TTS.waitForFinish();
-        await new Promise(r => setTimeout(r, 1000));
-        const interimBox = document.getElementById('listeningBox');
-        interimBox.style.display = 'block';
-        interimBox.textContent = "Listening for yes or no...";
-        const response = await srWithBeep({ lang: 'en-US', interim: false, timeout: 10000 });
-        interimBox.style.display = 'none';
-        if (response && interpretConfirmation(response) === 'yes') {
-          navigationState.currentStepIndex = navigationState.fullPath.length - 2;
-          announce(`Redirecting you directly to ${navigationState.destination}.`, true);
-          await TTS.waitForFinish();
-          setTimeout(() => { giveCurrentInstruction(); }, 1000);
-          return;
-        }
-      }
-      navigationState.currentStepIndex++;
-      updateNavigationProgressUI();
-      setTimeout(() => { giveCurrentInstruction(); }, 1000);
-    }
-
-    function startQRVerification(expectedLocation) {
-      if (!navigationState.active) return;
-      navigationState.waitingForQR = true;
-      navigationState.expectedLocation = expectedLocation;
-      TTS.stop();
-      announce(`Please scan the QR code at ${expectedLocation} to verify your location.`, true);
-      overlayText.textContent = `Scan QR at ${expectedLocation} to continue`;
-      if (!scannerRunning) {
-        log("🎥 Starting camera for QR verification");
-        setTimeout(() => { startCamera(); }, 1500);
-      }
-    }
-
-    function handleNavigationQRScan(scannedLocation) {
-      if (!navigationState.active || !navigationState.waitingForQR) return false;
-      const expected = navigationState.expectedLocation;
-      const scanned = scannedLocation.trim();
-      log(`🔍 QR Verification: Expected "${expected}", Scanned "${scanned}"`);
-      if (scanned === expected || scanned.toLowerCase() === expected.toLowerCase()) {
-        TTS.stop();
-        announce(`Verified: You are at ${scanned}.`, true);
-        navigationState.waitingForQR = false;
         navigationState.currentStepIndex++;
-        currentLocation = scanned;
         updateNavigationProgressUI();
-        setTimeout(async () => { await TTS.waitForFinish(); giveCurrentInstruction(); }, 2000);
-        return true;
-      } else {
-        const pathIndex = navigationState.fullPath.indexOf(scanned);
-        if (pathIndex !== -1 && pathIndex > navigationState.currentStepIndex) {
-          announce(`This is ${scanned}. You've jumped ahead in the path. Adjusting navigation.`, false);
-          navigationState.currentStepIndex = pathIndex;
-          currentLocation = scanned;
+        setTimeout(() => { giveCurrentInstruction(); }, 1000);
+      }
+
+      function startQRVerification(expectedLocation) {
+        if (!navigationState.active) return;
+        navigationState.waitingForQR = true;
+        navigationState.expectedLocation = expectedLocation;
+        TTS.stop();
+        announce(`Please scan the QR code at ${expectedLocation} to verify your location.`, true);
+        overlayText.textContent = `Scan QR at ${expectedLocation} to continue`;
+        if (!scannerRunning) {
+          log("🎥 Starting camera for QR verification");
+          setTimeout(() => { startCamera(); }, 1500);
+        }
+      }
+
+      function handleNavigationQRScan(scannedLocation) {
+        if (!navigationState.active || !navigationState.waitingForQR) return false;
+        const expected = navigationState.expectedLocation;
+        const scanned = scannedLocation.trim();
+        log(`🔍 QR Verification: Expected "${expected}", Scanned "${scanned}"`);
+        if (scanned === expected || scanned.toLowerCase() === expected.toLowerCase()) {
+          TTS.stop();
+          announce(`Verified: You are at ${scanned}.`, true);
           navigationState.waitingForQR = false;
+          navigationState.currentStepIndex++;
+          currentLocation = scanned;
           updateNavigationProgressUI();
           setTimeout(async () => { await TTS.waitForFinish(); giveCurrentInstruction(); }, 2000);
           return true;
         } else {
-          announce(`This is ${scanned}, but I expected ${expected}. Please find ${expected} and scan its QR code, or say 'skip' to skip this waypoint.`, false);
-          return false;
+          const pathIndex = navigationState.fullPath.indexOf(scanned);
+          if (pathIndex !== -1 && pathIndex > navigationState.currentStepIndex) {
+            announce(`This is ${scanned}. You've jumped ahead in the path. Adjusting navigation.`, false);
+            navigationState.currentStepIndex = pathIndex;
+            currentLocation = scanned;
+            navigationState.waitingForQR = false;
+            updateNavigationProgressUI();
+            setTimeout(async () => { await TTS.waitForFinish(); giveCurrentInstruction(); }, 2000);
+            return true;
+          } else {
+            announce(`This is ${scanned}, but I expected ${expected}. Please find ${expected} and scan its QR code, or say 'skip' to skip this waypoint.`, false);
+            return false;
+          }
         }
       }
-    }
 
-    function finishNavigation() {
-      const finalDestination = navigationState.fullPath[navigationState.fullPath.length - 1];
-      navigationState.active = false;
-      navigationState.waitingForQR = false;
-      navigationState.waitingForVoice = false;
-      navigationProgress.style.display = 'none';
-      destinationNode = null;
-      drawMap();
-      TTS.stop();
-      announce(`Congratulations! You have successfully arrived at your destination: ${finalDestination}. Navigation complete!`, true);
-      overlayText.textContent = `🎯 Arrived at ${finalDestination} - Navigation Complete!`;
-      log(`🎯 Navigation completed successfully to ${finalDestination}`);
-      if (navigationState.skipCount > 0) log(`📊 Navigation stats: ${navigationState.skipCount} waypoints were skipped`);
-      vibrateArrival();
-      setTimeout(() => { announce("You can start a new navigation by pressing the Voice Destination button.", false); }, 3000);
-    }
-
-    function cancelNavigation() {
-      navigationState.active = false;
-      navigationState.waitingForQR = false;
-      navigationState.waitingForVoice = false;
-      destinationNode = null;
-      navigationProgress.style.display = 'none';
-      drawMap();
-      TTS.stop();
-      announce("Navigation cancelled.", true);
-      overlayText.textContent = "Navigation cancelled";
-      log("❌ Navigation cancelled by user");
-      if (scannerRunning) stopCamera();
-    }
-
-    function updateNavigationProgressUI() {
-      if (!navigationState.active) {
+      function finishNavigation() {
+        const finalDestination = navigationState.fullPath[navigationState.fullPath.length - 1];
+        navigationState.active = false;
+        navigationState.waitingForQR = false;
+        navigationState.waitingForVoice = false;
         navigationProgress.style.display = 'none';
-        return;
+        destinationNode = null;
+        drawMap();
+        TTS.stop();
+        announce(`Congratulations! You have successfully arrived at your destination: ${finalDestination}. Navigation complete!`, true);
+        overlayText.textContent = `🎯 Arrived at ${finalDestination} - Navigation Complete!`;
+        log(`🎯 Navigation completed successfully to ${finalDestination}`);
+        if (navigationState.skipCount > 0) log(`📊 Navigation stats: ${navigationState.skipCount} waypoints were skipped`);
+        vibrateArrival();
+        setTimeout(() => { announce("You can start a new navigation by pressing the Voice Destination button.", false); }, 3000);
       }
-      navigationProgress.style.display = 'block';
-      navStepsList.innerHTML = '';
-      const path = navigationState.fullPath;
-      for (let i = 0; i < path.length; i++) {
-        const stepDiv = document.createElement('div');
-        stepDiv.className = 'nav-step';
-        if (i < navigationState.currentStepIndex) {
-          stepDiv.classList.add('completed');
-          stepDiv.textContent = `✓ ${path[i]}`;
-        } else if (i === navigationState.currentStepIndex) {
-          stepDiv.classList.add('current');
-          stepDiv.textContent = `→ ${path[i]} (Current)`;
-        } else {
-          stepDiv.textContent = `${i + 1}. ${path[i]}`;
-        }
-        navStepsList.appendChild(stepDiv);
-      }
-    }
 
-    function dijkstra(gr, start, end) {
-      const pq = new MinHeap();
-      pq.push({ cost: 0, node: start, path: [] });
-      const visited = new Set();
-      while (!pq.empty()) {
-        const item = pq.pop();
-        const { cost, node, path } = item;
-        if (visited.has(node)) continue;
-        const newPath = path.concat([node]);
-        visited.add(node);
-        if (node === end) return { path: newPath, cost };
-        const neighbors = gr[node] || {};
-        for (const nb in neighbors) {
-          if (!visited.has(nb)) pq.push({ cost: cost + neighbors[nb], node: nb, path: newPath });
-        }
+      function cancelNavigation() {
+        navigationState.active = false;
+        navigationState.waitingForQR = false;
+        navigationState.waitingForVoice = false;
+        destinationNode = null;
+        navigationProgress.style.display = 'none';
+        drawMap();
+        TTS.stop();
+        announce("Navigation cancelled.", true);
+        overlayText.textContent = "Navigation cancelled";
+        log("❌ Navigation cancelled by user");
+        if (scannerRunning) stopCamera();
       }
-      return { path: [], cost: Infinity };
-    }
 
-    class MinHeap {
-      constructor() { this.a = []; }
-      push(x) { this.a.push(x); this._siftUp(); }
-      pop() {
-        if (this.a.length === 0) return null;
-        const r = this.a[0];
-        const last = this.a.pop();
-        if (this.a.length) { this.a[0] = last; this._siftDown(); }
-        return r;
-      }
-      empty() { return this.a.length === 0; }
-      _siftUp() {
-        let i = this.a.length - 1;
-        while (i > 0) {
-          let p = Math.floor((i - 1) / 2);
-          if (this.a[p].cost <= this.a[i].cost) break;
-          [this.a[p], this.a[i]] = [this.a[i], this.a[p]];
-          i = p;
+      function updateNavigationProgressUI() {
+        if (!navigationState.active) {
+          navigationProgress.style.display = 'none';
+          return;
+        }
+        navigationProgress.style.display = 'block';
+        navStepsList.innerHTML = '';
+        const path = navigationState.fullPath;
+        for (let i = 0; i < path.length; i++) {
+          const stepDiv = document.createElement('div');
+          stepDiv.className = 'nav-step';
+          if (i < navigationState.currentStepIndex) {
+            stepDiv.classList.add('completed');
+            stepDiv.textContent = `✓ ${path[i]}`;
+          } else if (i === navigationState.currentStepIndex) {
+            stepDiv.classList.add('current');
+            stepDiv.textContent = `→ ${path[i]} (Current)`;
+          } else {
+            stepDiv.textContent = `${i + 1}. ${path[i]}`;
+          }
+          navStepsList.appendChild(stepDiv);
         }
       }
-      _siftDown() {
-        let i = 0; const n = this.a.length;
-        while (true) {
-          let l = i * 2 + 1; let r = i * 2 + 2; let smallest = i;
-          if (l < n && this.a[l].cost < this.a[smallest].cost) smallest = l;
-          if (r < n && this.a[r].cost < this.a[smallest].cost) smallest = r;
-          if (smallest === i) break;
-          [this.a[i], this.a[smallest]] = [this.a[smallest], this.a[i]];
-          i = smallest;
+
+      function dijkstra(gr, start, end) {
+        const pq = new MinHeap();
+        pq.push({ cost: 0, node: start, path: [] });
+        const visited = new Set();
+        while (!pq.empty()) {
+          const item = pq.pop();
+          const { cost, node, path } = item;
+          if (visited.has(node)) continue;
+          const newPath = path.concat([node]);
+          visited.add(node);
+          if (node === end) return { path: newPath, cost };
+          const neighbors = gr[node] || {};
+          for (const nb in neighbors) {
+            if (!visited.has(nb)) pq.push({ cost: cost + neighbors[nb], node: nb, path: newPath });
+          }
+        }
+        return { path: [], cost: Infinity };
+      }
+
+      class MinHeap {
+        constructor() { this.a = []; }
+        push(x) { this.a.push(x); this._siftUp(); }
+        pop() {
+          if (this.a.length === 0) return null;
+          const r = this.a[0];
+          const last = this.a.pop();
+          if (this.a.length) { this.a[0] = last; this._siftDown(); }
+          return r;
+        }
+        empty() { return this.a.length === 0; }
+        _siftUp() {
+          let i = this.a.length - 1;
+          while (i > 0) {
+            let p = Math.floor((i - 1) / 2);
+            if (this.a[p].cost <= this.a[i].cost) break;
+            [this.a[p], this.a[i]] = [this.a[i], this.a[p]];
+            i = p;
+          }
+        }
+        _siftDown() {
+          let i = 0; const n = this.a.length;
+          while (true) {
+            let l = i * 2 + 1; let r = i * 2 + 2; let smallest = i;
+            if (l < n && this.a[l].cost < this.a[smallest].cost) smallest = l;
+            if (r < n && this.a[r].cost < this.a[smallest].cost) smallest = r;
+            if (smallest === i) break;
+            [this.a[i], this.a[smallest]] = [this.a[smallest], this.a[i]];
+            i = smallest;
+          }
         }
       }
-    }
 
-    function get_turn_direction(p1, p2, p3) {
-      const v1 = [p2[0] - p1[0], p2[1] - p1[1]];
-      const v2 = [p3[0] - p2[0], p3[1] - p2[1]];
-      const raw = (Math.atan2(v2[1], v2[0]) - Math.atan2(v1[1], v1[0])) * 180 / Math.PI;
-      const angle = (raw + 360) % 360;
-      if (angle < 45 || angle > 315) return "Continue straight";
-      if (angle >= 45 && angle < 135) return "Turn right";
-      if (angle >= 135 && angle < 225) return "Turn around";
-      return "Turn left";
-    }
-
-    function get_initial_direction_simple(p1, p2) {
-      const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
-      const angle = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
-      if (angle >= 315 || angle < 45) return "Head straight";
-      if (angle >= 45 && angle < 135) return "Head right";
-      if (angle >= 135 && angle < 225) return "Head back";
-      return "Head left";
-    }
-
-    async function start_navigation(destination) {
-      if (!currentLocation) { announce("No current location. Scan QR codes first.", false); return; }
-      if (!destination) { announce("No destination selected.", false); return; }
-      const res = dijkstra(graph, currentLocation, destination);
-      if (!res.path.length || res.cost === Infinity) { announce("No path found to that destination.", false); alert("Routing error: no path found."); return; }
-      navigationState.active = true;
-      navigationState.fullPath = res.path;
-      navigationState.currentStepIndex = 0;
-      navigationState.waitingForQR = false;
-      navigationState.expectedLocation = null;
-      navigationState.waitingForVoice = false;
-      navigationState.skipCount = 0;
-      navigationState.destination = destination;
-      destinationNode = destination;
-      updateNavigationProgressUI();
-      drawMap();
-      log(`🗺️ Navigation started from ${currentLocation} to ${destination}`);
-      log(`📍 Full path: ${res.path.join(' → ')}`);
-      log(`📏 Total distance: ${Math.round(res.cost)} meters`);
-      announce(`Navigation started to ${destination}. Total distance ${Math.round(res.cost)} meters. You will pass through ${res.path.length - 2} waypoints.`, true);
-      setTimeout(async () => { await TTS.waitForFinish(); giveCurrentInstruction(); }, 2000);
-    }
-
-    async function giveCurrentInstruction() {
-      if (!navigationState.active) return;
-      const path = navigationState.fullPath;
-      const idx = navigationState.currentStepIndex;
-      if (idx >= path.length - 1) { finishNavigation(); return; }
-      const current = path[idx];
-      const next = path[idx + 1];
-      const distance = (graph[current] && graph[current][next]) ? graph[current][next] : 0;
-      const totalSteps = path.length - 1;
-      const stepNum = idx + 1;
-      let instruction;
-      if (idx === 0) instruction = `From ${current}, ${get_initial_direction_simple(node_coords[current], node_coords[next])} towards ${next}`;
-      else {
-        const prev = path[idx - 1];
-        instruction = `At ${current}, ${get_turn_direction(node_coords[prev], node_coords[current], node_coords[next])} towards ${next}`;
+      function get_turn_direction(p1, p2, p3) {
+        const v1 = [p2[0] - p1[0], p2[1] - p1[1]];
+        const v2 = [p3[0] - p2[0], p3[1] - p2[1]];
+        const raw = (Math.atan2(v2[1], v2[0]) - Math.atan2(v1[1], v1[0])) * 180 / Math.PI;
+        const angle = (raw + 360) % 360;
+        if (angle < 45 || angle > 315) return "Continue straight";
+        if (angle >= 45 && angle < 135) return "Turn right";
+        if (angle >= 135 && angle < 225) return "Turn around";
+        return "Turn left";
       }
-      const stepInfo = `Step ${stepNum} of ${totalSteps}. ${instruction}. Distance ${distance.toFixed(0)} meters.`;
-      TTS.stop();
-      announce(stepInfo, true);
-      log(`🗺️ Navigation Step ${stepNum}/${totalSteps}: ${instruction} (${distance.toFixed(0)}m)`);
-      overlayText.textContent = `Step ${stepNum}/${totalSteps}: Walk to ${next}`;
-      updateNavigationProgressUI();
-      await TTS.waitForFinish();
-      setTimeout(() => { waitForNextCommand(next); }, 1000);
-    }
 
-    startBtn.onclick = async () => {
-      if (scannerRunning) { announce("Scanner already running.", false); return; }
-      userGesturePerformed = true;
-      await startCamera();
-    };
+      function get_initial_direction_simple(p1, p2) {
+        const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
+        const angle = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+        if (angle >= 315 || angle < 45) return "Head straight";
+        if (angle >= 45 && angle < 135) return "Head right";
+        if (angle >= 135 && angle < 225) return "Head back";
+        return "Head left";
+      }
 
-    stopBtn.onclick = () => {
-      stopCamera();
-      if (navigationState.active) cancelNavigation();
-    };
+      async function start_navigation(destination) {
+        if (!currentLocation) { announce("No current location. Scan QR codes first.", false); return; }
+        if (!destination) { announce("No destination selected.", false); return; }
+        const res = dijkstra(graph, currentLocation, destination);
+        if (!res.path.length || res.cost === Infinity) { announce("No path found to that destination.", false); alert("Routing error: no path found."); return; }
+        navigationState.active = true;
+        navigationState.fullPath = res.path;
+        navigationState.currentStepIndex = 0;
+        navigationState.waitingForQR = false;
+        navigationState.expectedLocation = null;
+        navigationState.waitingForVoice = false;
+        navigationState.skipCount = 0;
+        navigationState.destination = destination;
+        destinationNode = destination;
+        updateNavigationProgressUI();
+        drawMap();
+        log(`🗺️ Navigation started from ${currentLocation} to ${destination}`);
+        log(`📍 Full path: ${res.path.join(' → ')}`);
+        log(`📏 Total distance: ${Math.round(res.cost)} meters`);
+        announce(`Navigation started to ${destination}. Total distance ${Math.round(res.cost)} meters. You will pass through ${res.path.length - 2} waypoints.`, true);
+        setTimeout(async () => { await TTS.waitForFinish(); giveCurrentInstruction(); }, 2000);
+      }
 
-    restartBtn.onclick = () => {
-      if (navigationState.active) cancelNavigation();
-      stopCamera();
-      foundResults.clear();
-      actionsTriggered = false;
-      scanStartTime = Date.now();
-      setTimeout(() => { startBtn.click(); }, 300);
-    };
+      async function giveCurrentInstruction() {
+        if (!navigationState.active) return;
+        const path = navigationState.fullPath;
+        const idx = navigationState.currentStepIndex;
+        if (idx >= path.length - 1) { finishNavigation(); return; }
+        const current = path[idx];
+        const next = path[idx + 1];
+        const distance = (graph[current] && graph[current][next]) ? graph[current][next] : 0;
+        const totalSteps = path.length - 1;
+        const stepNum = idx + 1;
+        let instruction;
+        if (idx === 0) instruction = `From ${current}, ${get_initial_direction_simple(node_coords[current], node_coords[next])} towards ${next}`;
+        else {
+          const prev = path[idx - 1];
+          instruction = `At ${current}, ${get_turn_direction(node_coords[prev], node_coords[current], node_coords[next])} towards ${next}`;
+        }
+        const stepInfo = `Step ${stepNum} of ${totalSteps}. ${instruction}. Distance ${distance.toFixed(0)} meters.`;
+        TTS.stop();
+        announce(stepInfo, true);
+        log(`🗺️ Navigation Step ${stepNum}/${totalSteps}: ${instruction} (${distance.toFixed(0)}m)`);
+        overlayText.textContent = `Step ${stepNum}/${totalSteps}: Walk to ${next}`;
+        updateNavigationProgressUI();
+        await TTS.waitForFinish();
+        setTimeout(() => { waitForNextCommand(next); }, 1000);
+      }
 
-    voiceDestBtn.onclick = async () => {
-      userGesturePerformed = true;
-      TTS.stop();
-      announce("Please say your destination after the beep.", true);
-      await TTS.waitForFinish();
-      await playBeep();
-      await ask_destination_via_voice();
-    };
+      startBtn.onclick = async () => {
+        if (scannerRunning) { announce("Scanner already running.", false); return; }
+        userGesturePerformed = true;
+        await startCamera();
+      };
 
-    mapBtn.onclick = () => {
-      drawMap();
-      mapModal.style.display = 'flex';
-      announce("Map opened. Close when ready.", false);
-    };
+      stopBtn.onclick = () => {
+        stopCamera();
+        if (navigationState.active) cancelNavigation();
+      };
 
-    closeMap.onclick = () => {
-      mapModal.style.display = 'none';
-      announce("Map closed.", false);
-    };
+      restartBtn.onclick = () => {
+        if (navigationState.active) cancelNavigation();
+        stopCamera();
+        foundResults.clear();
+        actionsTriggered = false;
+        scanStartTime = Date.now();
+        setTimeout(() => { startBtn.click(); }, 300);
+      };
 
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 's' || e.key === 'S') { startBtn.click(); }
-      if (e.key === 'v' || e.key === 'V') { voiceDestBtn.click(); }
-      if (e.key === 'm' || e.key === 'M') { mapBtn.click(); }
-      if (e.key === 'r' || e.key === 'R') { restartBtn.click(); }
-      if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
-    });
+      voiceDestBtn.onclick = async () => {
+        userGesturePerformed = true;
+        if (scannerRunning) stopCamera(); // ensure no camera while listening
+        TTS.stop();
+        announce("Please say your destination after the beep.", true);
+        await TTS.waitForFinish();
+        await playBeep();
+        await ask_destination_via_voice();
+      };
 
-    function onOpenCvReady() {
-      cvReady = true;
-      log("OpenCV ready");
-      announce("OpenCV loaded - improved color detection available.", false);
-    }
+      mapBtn.onclick = () => {
+        drawMap();
+        mapModal.style.display = 'flex';
+        announce("Map opened. Close when ready.", false);
+      };
 
-    if (typeof cv !== 'undefined') {
-      if (cv && cv.Mat) onOpenCvReady();
-      else cv['onRuntimeInitialized'] = onOpenCvReady;
-    } else {
-      setTimeout(() => { if (!cvReady) announce("OpenCV not loaded. Using JavaScript color detection.", false); }, 7000);
-    }
+      closeMap.onclick = () => {
+        mapModal.style.display = 'none';
+        announce("Map closed.", false);
+      };
 
-    window.addEventListener('beforeunload', () => { if (stream) stream.getTracks().forEach(t => t.stop()); speechSynthesis.cancel(); });
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 's' || e.key === 'S') { startBtn.click(); }
+        if (e.key === 'v' || e.key === 'V') { voiceDestBtn.click(); }
+        if (e.key === 'm' || e.key === 'M') { mapBtn.click(); }
+        if (e.key === 'r' || e.key === 'R') { restartBtn.click(); }
+        if (e.code === 'Space') { e.preventDefault(); stopBtn.click(); }
+      });
 
-    announce("VI Indoor Navigation System ready. Start by scanning the initial QR codes to determine your location.", false);
-    log("App initialized. Speech recognition available: " + (SR_AVAILABLE ? 'yes' : 'no'));
-    log("Enhanced step-by-step navigation with QR verification enabled");
+      function onOpenCvReady() {
+        cvReady = true;
+        log("OpenCV ready");
+        announce("OpenCV loaded - improved color detection available.", false);
+      }
+
+      if (typeof cv !== 'undefined') {
+        if (cv && cv.Mat) onOpenCvReady();
+        else cv['onRuntimeInitialized'] = onOpenCvReady;
+      } else {
+        setTimeout(() => { if (!cvReady) announce("OpenCV not loaded. Using JavaScript color detection.", false); }, 7000);
+      }
+
+      window.addEventListener('beforeunload', () => { if (stream) stream.getTracks().forEach(t => t.stop()); speechSynthesis.cancel(); });
+
+      announce("VI Indoor Navigation System ready. Start by scanning the initial QR codes to determine your location.", false);
+      log("App initialized. Speech recognition available: " + (SR_AVAILABLE ? 'yes' : 'no'));
+      log("Enhanced step-by-step navigation with QR verification enabled");
   </script>
 
 </body>
