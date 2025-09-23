@@ -923,9 +923,34 @@
         scannerRunning = true;
 
         // Different announcements based on context
-        if (navigationState.waitingForQR) {
-          announce(`Camera started. Scanning for ${navigationState.expectedLocation} QR code.`, true);
-        } else {
+        // Replace the navigation QR scanning section in your processFrame function
+// Find this code block around line 680-690 and replace it with the fixed version below:
+
+      if (navigationState.waitingForQR) {
+        const detection = detect_colored_qr_in_frame_js(imageData, null);
+        if (detection.found && detection.decoded) {
+          const scannedLocation = detection.decoded.trim();
+          
+          // ADD VIBRATION FEEDBACK FOR NAVIGATION QR DETECTION
+          if (detection.boxArea) {
+            const scanArea = scanBox.size * scanBox.size;
+            const ratio = detection.boxArea / scanArea;
+            vibrateProximityFromRatio(ratio);
+            log(`[NAV-QR-VIBRATE] QR detected, vibrating with ratio: ${ratio.toFixed(3)}`);
+          } else {
+            // Fallback vibration if boxArea is not available
+            try {
+              if ('vibrate' in navigator) {
+                navigator.vibrate([100, 50, 100]); // Simple confirmation pattern
+              }
+            } catch(e) {
+              console.warn('Vibration fallback failed:', e);
+            }
+          }
+          
+          handleNavigationQRScan(scannedLocation);
+        }
+      }else {
           announce("Camera started. Scanning for QR codes. Point the phone at the QR.", true);
           updateProgressDisplay();
         }
